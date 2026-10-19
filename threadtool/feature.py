@@ -156,6 +156,13 @@ class ThreadFeature:
         msgs = [m for m in plan.messages if not (h and h.get("type") == "lamage" and builder.is_entry_msg(m))]
         msgs += [hmsg] if hmsg else []
         cuts = list(plan.cut_tools)
+        if info["kind"] == "trou":
+            try:                                      # copie du taraudage = trou + filet (Symétrie / Répétition)
+                bore = builder.bore_solid(info)
+                if bore is not None:
+                    cuts.insert(0, bore)
+            except Exception:
+                pass
         adds = [plan.add_tool] if plan.add_tool is not None else []
         if h:
             base, direction = head_frame(plan, info, h)

@@ -119,6 +119,19 @@ def make_plan(shape, info, spec, cfg, side="high", ref_t=None, depth=None, kind=
     return p
 
 
+def _core(r, H, base=None, axis=None):
+    """Cylindre à NE PAS enlever dans un trou : ce qui est à l'intérieur du perçage (plot, broche d'un
+    connecteur…) ne fait pas partie du taraudage. r : un peu moins que le rayon actuel du trou."""
+    if r <= 1e-3:
+        return None
+    if base is None:
+        return Part.makeCylinder(r, H)
+    return Part.makeCylinder(r, H, base, axis)
+
+
+CORE_GAP = 0.05                  # retrait du noyau protégé sous la paroi du trou (mm)
+
+
 def entry_solid(info, p, cfg):
     """Zone entre la face de début et le filet : son Ø doit laisser passer la pièce vissée.
 
@@ -142,9 +155,27 @@ def entry_solid(info, p, cfg):
         if min(cur) >= target - 1e-4:
             return None
         sol = Part.makeCylinder(target, p.zone, base, p.a)
+        core = _core(min(cur) - CORE_GAP, p.zone, base, p.a)      # anneau : l'intérieur du trou est conservé
+        if core is not None:
+            sol = sol.cut(core)
         if min(cur) < p.r_root - tol:
             p.messages.append(tr(ENTRY_MSGS[1]) % (p.zone, 2 * target))
     return sol
+
+
+def bore_solid(info):
+    """Le perçage existant lui-même (face filetée, d'un bout à l'autre), pour la Symétrie / les Répétitions :
+    une copie du taraudage emporte son trou, même si seule la fonction Filetage est répétée.
+    Sans effet à l'emplacement d'origine (FreeCAD n'y applique pas l'outil, et c'est déjà du vide)."""
+    a, c = info["axis"], info["center"]
+    t1, t2 = info["t_min"], info["t_max"]
+    if t2 - t1 <= 1e-6:
+        return None
+    r1, r2 = radius_at(info, t1), radius_at(info, t2)
+    base = c + a * t1
+    if abs(r1 - r2) < 1e-6:
+        return Part.makeCylinder(r1, t2 - t1, base, a)
+    return Part.makeCone(r1, r2, t2 - t1, base, a)
 
 
 def limit_solid(shape, p):
@@ -199,8 +230,11 @@ def resize_solids(shape, info, p, cfg):
             ring.translate(V(0, 0, za))
             add = ring.cut(Part.makeCylinder(ri, zb - za, V(0, 0, za)))
     else:
-        if rmax > cmin + tol:                               # trou trop petit : on alèse
+        if rmax > cmin + tol:                               # trou trop petit : on alèse (anneau)
             cut = _cone(r0, rH, H)
+            core = _core(cmin - CORE_GAP, H)
+            if core is not None:
+                cut = cut.cut(core)
         if rmin < cmax - tol:                               # trou trop grand : on rebouche
             if not cfg.allow_add_material:
                 raise NotThreadable(tr("Le Ø du trou (%.2f) est plus grand que le Ø requis (%.2f) et l'ajout "

@@ -150,6 +150,16 @@ one = box.Shape.Volume - t.Shape.Volume
 check(len(r.Solids) == 1 and abs((box.Shape.Volume - r.Volume) - 2 * one) < 1e-3,
       "Répétition : 2 trous taraudés identiques (%.3f = 2 × %.3f mm3)" % (box.Shape.Volume - r.Volume, one))
 
+# 3b. le taraudage SEUL est répété (sans la Poche) : chaque copie emporte son perçage
+lp.Originals = [t]
+doc.recompute()
+removed = box.Shape.Volume - lp.Shape.Volume
+check(lp.isValid() and abs(removed - 2 * one) < 1e-3,
+      "Répétition du taraudage seul : trou + filet copiés (%.3f = 2 × %.3f mm3)" % (removed, one))
+doc.removeObject(lp.Name)
+body.Tip = t
+doc.recompute()
+
 # ---------------------------------------------------------------- 4. trou au Ø nominal : rebouchage => avertissement
 doc = App.newDocument("N")
 body = doc.addObject("PartDesign::Body", "Body")

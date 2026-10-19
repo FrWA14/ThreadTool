@@ -185,15 +185,29 @@ def _local(shape, base, direction):
     return s
 
 
+CORE_RATIO = 0.6                 # noyau conservé : 0,6 × rayon nominal, toujours sous le Ø de perçage
+
+
 def hole_solid(h, base, inward, r_hole=0.0):
-    """Lamage / fraisage à enlever : base = centre de la face d'entrée, inward = vers la matière."""
+    """Lamage / fraisage à enlever : base = centre de la face d'entrée, inward = vers la matière.
+
+    C'est un anneau : ce qui se trouve au cœur du trou (plot, broche d'un connecteur) est conservé."""
     if h["type"] == "lamage":
-        return Part.makeCylinder(h["diameter"] / 2, h["depth"], V(base), V(inward))
-    R = h["diameter"] / 2
-    H = R / math.tan(math.radians(h["angle"]) / 2)
-    # le cône s'arrête au rayon du trou (au-delà il est dans le vide du perçage)
-    r_end = min(max(r_hole, 0.0), 0.95 * R)
-    return Part.makeCone(R, r_end, H * (R - r_end) / R, V(base), V(inward))
+        sol = Part.makeCylinder(h["diameter"] / 2, h["depth"], V(base), V(inward))
+        length = h["depth"]
+    else:
+        R = h["diameter"] / 2
+        H = R / math.tan(math.radians(h["angle"]) / 2)
+        # le cône s'arrête au rayon du trou (au-delà il est dans le vide du perçage)
+        r_end = min(max(r_hole, 0.0), 0.95 * R)
+        length = H * (R - r_end) / R
+        sol = Part.makeCone(R, r_end, length, V(base), V(inward))
+    r_core = CORE_RATIO * r_hole
+    if r_core > 1e-3 and length > 1e-6:
+        d = V(inward)
+        d.normalize()
+        sol = sol.cut(Part.makeCylinder(r_core, length + 2.0, V(base) - d * 1.0, d))
+    return sol
 
 
 def _hex_prism(s, h, z0=0.0):

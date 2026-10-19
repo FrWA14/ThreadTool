@@ -1,7 +1,8 @@
 """Début du filet décalé depuis la face, entrée ramenée au Ø de pied (freecadcmd tests/test_offset.py).
 
 Cas de l'utilisateur : cylindre Ø14 × 37,5, haut réduit à Ø8 sur 12 mm, chanfrein 1 mm,
-M10 commencé 2 mm sous la face, sur 3 filets (4,5 mm)."""
+M10 commencé 2 mm sous la face, sur 3 filets (4,5 mm).
+Cas G : connecteur (cylindre creusé par une Coque, plot au centre) : le plot n'est jamais coupé."""
 import os
 import sys
 import math
@@ -195,5 +196,41 @@ v = per_pitch(t.Shape, (8.0, 8.0 + 1.25, 14.0), 1.25, m8["d2"] / 2, False)
 check(max(v) - min(v) < 1e-3, "F : dernier filet complet au fond, matière par pas %s mm3" % ", ".join("%.3f" % x for x in v))
 check(abs(t.Shape.common(Part.makeBox(20, 20, 7.99, V(-10, -10, 0))).Volume - 20 * 20 * 7.99) < 1e-4,
       "F : rien sous le fond (z = 8)")
+
+# ------------------------------------------------------------ G. connecteur : plot au centre du trou taraudé
+# Cylindre Ø20 × 30 creusé par une Coque (paroi 2, fond 2) depuis le dessus, plot Ø8 × 30 au centre.
+# Le taraudage de l'alésage Ø16 (décalé, ajusté, avec lamage ou fraisage) ne doit jamais toucher le plot.
+def connector(name):
+    doc = App.newDocument(name)
+    body = doc.addObject("PartDesign::Body", "Body")
+    cyl = body.newObject("PartDesign::AdditiveCylinder", "Cyl")
+    cyl.Radius, cyl.Height = 10, 30
+    doc.recompute()
+    top = [("Face%d" % (i + 1)) for i, f in enumerate(cyl.Shape.Faces)
+           if isinstance(f.Surface, Part.Plane) and abs(f.CenterOfMass.z - 30) < 1e-6][0]
+    th = body.newObject("PartDesign::Thickness", "Coque")
+    th.Base, th.Value, th.Reversed = (cyl, [top]), 2.0, True
+    doc.recompute()
+    pin = body.newObject("PartDesign::AdditiveCylinder", "Plot")
+    pin.Radius, pin.Height = 4, 30
+    doc.recompute()
+    return doc, body, pin
+
+
+for des, off, head in (("M16", 0, ""), ("M16", 3, ""), ("M20", 2, ""), ("M16", 2, "ISO 10642")):
+    doc, body, pin = connector("G_%s_%g" % (des, off))
+    base = pin.Shape
+    t = feature.create(body, "T")
+    t.FaceName = [("Face%d" % (i + 1)) for i, f in enumerate(base.Faces)
+                  if isinstance(f.Surface, Part.Cylinder) and abs(f.Surface.Radius - 8) < 1e-3][0]
+    t.Standard, t.Designation, t.StartOffset, t.Depth = "ISO", des, off, 30
+    if head:
+        t.HoleHead = head
+    doc.recompute()
+    core = Part.makeCylinder(4.001, 40, V(0, 0, -5))
+    lost = base.common(core).Volume - t.Shape.common(core).Volume
+    check(t.isValid() and abs(lost) < 1e-3 and abs(base.Volume - t.Shape.Volume) > 1,      # M16 : alésage Ø16 rebouché puis taraudé
+          "G : %s %s décalage %g : plot intact (%.3f mm3 perdus), alésage fileté (%s)"
+          % (des, head, off, lost, t.getStatusString()))
 
 log("\nDÉCALAGE : %s" % ("RÉUSSI" if not FAILS else "%d échec(s)" % len(FAILS)))
