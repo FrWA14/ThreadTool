@@ -8,4 +8,4 @@ try:
     threadtool.commands.setup_gui()
 except Exception as e:
     import FreeCAD
-    FreeCAD.Console.PrintError("ThreadTool : échec du chargement : %s\n" % e)
+    FreeCAD.Console.PrintError("ThreadTool : échec du chargement / loading failed : %s\n" % e)

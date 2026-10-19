@@ -6,6 +6,15 @@ import Part
 from .axis import NotThreadable, radial
 from . import thread_spec
 from .detect import radius_at, _interior_point
+from .i18n import tr, N_
+
+ENTRY_MSGS = (N_("Entrée de %.2f mm ramenée au Ø %.3f (pied du filet)"),
+              N_("Entrée de %.2f mm alésée au Ø %.3f (pied du taraudage)"))
+
+
+def is_entry_msg(m):
+    """Message « entrée ramenée au Ø de pied » (retiré quand un lamage occupe déjà l'entrée)."""
+    return any(m.startswith(tr(t).split("%")[0]) for t in ENTRY_MSGS)
 
 V = App.Vector
 
@@ -54,12 +63,12 @@ def make_plan(shape, info, spec, cfg, side="high", ref_t=None, depth=None, kind=
         p.length_source = "fonction"
     p.available -= cfg.end_margin
     if p.available <= 1e-6:
-        raise NotThreadable("Le plan de référence est au-delà de la face : aucune longueur à fileter")
+        raise NotThreadable(tr("Le plan de référence est au-delà de la face : aucune longueur à fileter"))
     p.messages = []
     if depth is None or depth <= 0:
         depth = default_depth(p.available, cfg)
     if depth > p.available + 1e-6:
-        p.messages.append("Profondeur ramenée à la longueur disponible (%.2f mm)" % p.available)
+        p.messages.append(tr("Profondeur ramenée à la longueur disponible (%.2f mm)") % p.available)
         depth = p.available
     p.depth = depth
     p.lead = spec.lead
@@ -106,7 +115,7 @@ def make_plan(shape, info, spec, cfg, side="high", ref_t=None, depth=None, kind=
         p.t_entry = p.t0 - (p.overflow + p.lead + 1.0) * p.u if p.overflow else p.t0
     p.r_root = p.g["r_open"] - p.g["depth"] if ext else p.g["r_open"] + p.g["depth"]
     if abs(p.R - p.r_open) > cfg.max_resize:
-        p.messages.append("Ajustement important du Ø : %+.2f mm" % (2 * (p.r_open - p.R)))
+        p.messages.append(tr("Ajustement important du Ø : %+.2f mm") % (2 * (p.r_open - p.R)))
     return p
 
 
@@ -127,14 +136,14 @@ def entry_solid(info, p, cfg):
             return None
         sol = Part.makeCylinder(max(cur) + 1.0, p.zone, base, p.a).cut(Part.makeCylinder(target, p.zone, base, p.a))
         if max(cur) > p.r_root + tol:
-            p.messages.append("Entrée de %.2f mm ramenée au Ø %.3f (pied du filet)" % (p.zone, 2 * target))
+            p.messages.append(tr(ENTRY_MSGS[0]) % (p.zone, 2 * target))
     else:
         target = p.r_root + m
         if min(cur) >= target - 1e-4:
             return None
         sol = Part.makeCylinder(target, p.zone, base, p.a)
         if min(cur) < p.r_root - tol:
-            p.messages.append("Entrée de %.2f mm alésée au Ø %.3f (pied du taraudage)" % (p.zone, 2 * target))
+            p.messages.append(tr(ENTRY_MSGS[1]) % (p.zone, 2 * target))
     return sol
 
 
@@ -183,8 +192,8 @@ def resize_solids(shape, info, p, cfg):
             cut = Part.makeCylinder(big, H).cut(_cone(r0, rH, H))
         if rmax > cmin + tol:                               # trop petit : on ajoute
             if not cfg.allow_add_material:
-                raise NotThreadable("Le Ø de la face (%.2f) est plus petit que le Ø requis (%.2f) et l'ajout "
-                                    "de matière est désactivé (Préférences)" % (2 * cmin, 2 * rmax))
+                raise NotThreadable(tr("Le Ø de la face (%.2f) est plus petit que le Ø requis (%.2f) et l'ajout "
+                                    "de matière est désactivé (Préférences)") % (2 * cmin, 2 * rmax))
             ri = max(cmin - min(0.3, 0.5 * cmin), 0.01)
             ring = _cone(p.r_at(za), p.r_at(zb), zb - za)
             ring.translate(V(0, 0, za))
@@ -194,8 +203,8 @@ def resize_solids(shape, info, p, cfg):
             cut = _cone(r0, rH, H)
         if rmin < cmax - tol:                               # trou trop grand : on rebouche
             if not cfg.allow_add_material:
-                raise NotThreadable("Le Ø du trou (%.2f) est plus grand que le Ø requis (%.2f) et l'ajout "
-                                    "de matière est désactivé (Préférences)" % (2 * cmax, 2 * rmin))
+                raise NotThreadable(tr("Le Ø du trou (%.2f) est plus grand que le Ø requis (%.2f) et l'ajout "
+                                    "de matière est désactivé (Préférences)") % (2 * cmax, 2 * rmin))
             ro = cmax + 0.3
             sleeve = Part.makeCylinder(ro, zb - za, V(0, 0, za))
             inner = _cone(p.r_at(za), p.r_at(zb), zb - za)
@@ -294,7 +303,7 @@ def plan_shapes(shape, info, spec, cfg, **kw):
     for c in groove_cutters(p, cfg):
         cc = c.common(lim)
         if not cc.Solids or cc.Volume < 1e-9:
-            raise NotThreadable("Échec de la découpe du filet au plan d'arrêt (booléen)")
+            raise NotThreadable(tr("Échec de la découpe du filet au plan d'arrêt (booléen)"))
         out.append(cc)
     return p, cut, add, out
 
@@ -317,11 +326,11 @@ def build(shape, info, spec, cfg, **kw):
         out = res.cut(tools, 1e-5)                            # booléen flou en secours
     res = out
     if not res.Solids:
-        raise NotThreadable("Échec du calcul booléen du filet")
+        raise NotThreadable(tr("Échec du calcul booléen du filet"))
     if len(res.Solids) > 1:
-        raise NotThreadable("Le filet coupe la pièce en %d morceaux (paroi trop fine ?)" % len(res.Solids))
+        raise NotThreadable(tr("Le filet coupe la pièce en %d morceaux (paroi trop fine ?)") % len(res.Solids))
     if before - res.Volume < 1e-6:
-        raise NotThreadable("Le sillon n'a rien enlevé (échec du booléen ?)")
+        raise NotThreadable(tr("Le sillon n'a rien enlevé (échec du booléen ?)"))
     _wall_warning(shape, info, p, cfg)
     return res.Solids[0], p
 
@@ -339,4 +348,4 @@ def _wall_warning(shape, info, p, cfg):
     u.normalize()
     q = p.c + p.a * t + u * rr
     if not shape.isInside(q, cfg.inside_tol, True):
-        p.messages.append("Attention : paroi peut-être trop fine derrière le filet")
+        p.messages.append(tr("Attention : paroi peut-être trop fine derrière le filet"))

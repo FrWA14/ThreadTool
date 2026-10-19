@@ -4,6 +4,7 @@ import FreeCAD as App
 import Part
 
 from .axis import NotThreadable, frame, radial, positive, resolve_axis
+from .i18n import tr
 
 TAPER_HALF_ANGLE = math.degrees(math.atan(1.0 / 32.0))     # 1,7899° (conicité 1:16)
 
@@ -12,7 +13,7 @@ def face_name(shape, face):
     for i, f in enumerate(shape.Faces):
         if f.isSame(face):
             return "Face%d" % (i + 1)
-    raise NotThreadable("Face introuvable dans la forme")
+    raise NotThreadable(tr("Face introuvable dans la forme"))
 
 
 def _tess_points(face, cfg):
@@ -96,7 +97,7 @@ def axial_range(faces, a, c, cfg):
             if e.Length > 1e-7:
                 ts += [(q - c).dot(a) for q in e.discretize(Number=max(8, cfg.n_samples // 4))]
     if not ts:
-        raise NotThreadable("Aucune arête de bord exploitable")
+        raise NotThreadable(tr("Aucune arête de bord exploitable"))
     return min(ts), max(ts)
 
 
@@ -105,7 +106,7 @@ def measure(group, a, c, cfg):
     tmin, tmax = axial_range(group, a, c, cfg)
     span, m = tmax - tmin, cfg.slice_margin
     if span <= 1e-6:
-        raise NotThreadable("Face de longueur nulle")
+        raise NotThreadable(tr("Face de longueur nulle"))
     samples = []
     for i in range(cfg.n_slices):
         t = tmin + span * (m + (1 - 2 * m) * (i + 0.5) / cfg.n_slices)
@@ -121,10 +122,10 @@ def measure(group, a, c, cfg):
             continue
         r = max(d) if cfg.polygon_sides >= 3 else sum(d) / len(d)
         if max(abs(x - r) for x in d) > cfg.tol(r):
-            raise NotThreadable("Section non circulaire (axe incorrect ? choisis un axe de référence)")
+            raise NotThreadable(tr("Section non circulaire (axe incorrect ? choisis un axe de référence)"))
         samples.append((t, r))
     if len(samples) < 2:
-        raise NotThreadable("Pas assez de coupes valides")
+        raise NotThreadable(tr("Pas assez de coupes valides"))
     n = len(samples)
     mt = sum(t for t, _ in samples) / n
     mr = sum(r for _, r in samples) / n
@@ -132,7 +133,7 @@ def measure(group, a, c, cfg):
     slope = sum((t - mt) * (r - mr) for t, r in samples) / den if den > 0 else 0.0
     r0 = mr - slope * mt
     if max(abs(r0 + slope * t - r) for t, r in samples) > cfg.tol(mr):
-        raise NotThreadable("Surface ni cylindrique ni conique")
+        raise NotThreadable(tr("Surface ni cylindrique ni conique"))
     if abs(slope * span) <= cfg.tol(mr):
         slope = 0.0
         r0 = mr
@@ -153,7 +154,7 @@ def _interior_point(face):
         if best and best[0] > 0:
             break
     if best is None:
-        raise NotThreadable("Impossible de trouver un point sur la face")
+        raise NotThreadable(tr("Impossible de trouver un point sur la face"))
     return best[1]
 
 
@@ -167,7 +168,7 @@ def classify(shape, p, a, c, R, cfg):
         return "trou"
     if in_axis and not in_out:
         return "arbre"
-    raise NotThreadable("Trou ou arbre indéterminé (paroi plus fine que ε ?)")
+    raise NotThreadable(tr("Trou ou arbre indéterminé (paroi plus fine que ε ?)"))
 
 
 def analyse(shape, face, ref=None, cfg=None):
@@ -175,14 +176,14 @@ def analyse(shape, face, ref=None, cfg=None):
     from .config import ThreadConfig
     cfg = cfg or ThreadConfig.load()
     if not shape.Solids:
-        raise NotThreadable("La pièce n'est pas un solide")
+        raise NotThreadable(tr("La pièce n'est pas un solide"))
     if isinstance(face, str):
         face = shape.getElement(face)
     a, c, half, warn = resolve_axis(face, ref, cfg)
     a = positive(App.Vector(a))
     a.normalize()
     if half and not cfg.allow_taper:
-        raise NotThreadable("Surface conique (demi-angle %.2f°)" % half)
+        raise NotThreadable(tr("Surface conique (demi-angle %.2f°)") % half)
     pts = _tess_points(face, cfg)
     R0 = sum(radial(p, c, a).Length for p in pts) / len(pts)
     if half:
@@ -193,8 +194,8 @@ def analyse(shape, face, ref=None, cfg=None):
     half_angle = math.degrees(math.atan(slope)) if slope else 0.0
     if half_angle:
         if abs(abs(half_angle) - TAPER_HALF_ANGLE) > cfg.taper_tol_deg or not cfg.allow_taper:
-            raise NotThreadable("Cône détecté (demi-angle ≈ %.2f°) : seule la conicité 1:16 (%.2f°) "
-                                "des filetages NPT / BSPT est acceptée" % (abs(half_angle), TAPER_HALF_ANGLE))
+            raise NotThreadable(tr("Cône détecté (demi-angle ≈ %.2f°) : seule la conicité 1:16 (%.2f°) "
+                                "des filetages NPT / BSPT est acceptée") % (abs(half_angle), TAPER_HALF_ANGLE))
     tmid = (tmin + tmax) / 2
     R = r0 + slope * tmid
     p = _interior_point(face)

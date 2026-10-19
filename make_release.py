@@ -42,6 +42,35 @@ DÉSINSTALLATION
   Supprime le dossier Mod/ThreadTool, ou utilise le gestionnaire d'extensions s'il a servi à l'installer.
 """
 
+README_EN = """ThreadTool {v} — threads and taps for FreeCAD Part Design (FreeCAD 1.0 or newer)
+
+INSTALLATION (Windows, Linux, macOS)
+
+Method 1: macro (simplest)
+  1. Unzip this archive anywhere.
+  2. In FreeCAD: File > Open... and choose Installer_ThreadTool.FCMacro (it opens in the macro editor).
+  3. Click "Execute macro" (green triangle in the Macro toolbar, or Macro > Execute macro).
+  4. Restart FreeCAD.
+
+Method 2: manual copy
+  1. In FreeCAD, open the Python console (View > Panels > Python console) and type:
+        App.getUserAppDataDir()
+     The folder shown contains (or must contain) a "Mod" sub-folder.
+       Windows : C:\\Users\\<name>\\AppData\\Roaming\\FreeCAD\\v1-1\\Mod
+       Linux   : ~/.local/share/FreeCAD/v1-1/Mod
+  2. Copy the "ThreadTool" folder of this archive into "Mod" (create "Mod" if it does not exist).
+  3. Restart FreeCAD.
+
+USE
+  Part Design workbench: the "Thread / tap" icon is right next to "Hole".
+  Preferences: Edit > Preferences > Part/Part Design > Thread.
+  The interface follows FreeCAD's language (French, English, or any language with a file in
+  ThreadTool/translations). Details: ThreadTool/README.md
+
+UNINSTALL
+  Delete the Mod/ThreadTool folder, or use the Addon manager if it was used to install it.
+"""
+
 
 def version():
     with open(os.path.join(HERE, "package.xml"), encoding="utf-8") as f:
@@ -63,6 +92,7 @@ def main():
                 z.write(full, "ThreadTool/" + rel.replace(os.sep, "/"))
         z.write(os.path.join(HERE, "Installer_ThreadTool.FCMacro"), "Installer_ThreadTool.FCMacro")
         z.writestr("LISEZMOI.txt", README.format(v=v).replace("\n", "\r\n"))
+        z.writestr("README.txt", README_EN.format(v=v).replace("\n", "\r\n"))
     print(out)
 
 

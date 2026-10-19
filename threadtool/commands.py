@@ -6,6 +6,7 @@ import Part
 from .axis import NotThreadable
 from .config import ThreadConfig
 from . import detect, builder, standards, feature, creation
+from .i18n import tr, enum_put
 
 CMD_NAME = "PartDesign_ThreadTool"
 LAST_PANEL = None          # dernier panneau ouvert (utile pour les tests de l'interface)
@@ -13,7 +14,7 @@ LAST_PANEL = None          # dernier panneau ouvert (utile pour les tests de l'i
 
 def _message(text):
     from PySide import QtWidgets
-    QtWidgets.QMessageBox.warning(Gui.getMainWindow(), "Filetage / taraudage", text)
+    QtWidgets.QMessageBox.warning(Gui.getMainWindow(), tr("Filetage / taraudage"), text)
 
 
 def _active_body(sel):
@@ -160,7 +161,7 @@ def init_creation(obj, sup, cfg):
     if face:                                       # cylindre attenant : le fileter / tarauder est proposé
         obj.FaceName = face
         obj.HintRadius = 0.0
-        obj.Operation = "Existant"
+        enum_put(obj, "Operation", creation.OPERATIONS, creation.OPERATIONS[0])
         try:
             info = detect.analyse(shape, face, None, cfg)
             t = (a.centers[0] - info["center"]).dot(info["axis"])
@@ -173,14 +174,14 @@ def init_creation(obj, sup, cfg):
             return
         except Exception:
             pass
-    obj.Operation = creation.OPERATIONS[1]
+    enum_put(obj, "Operation", creation.OPERATIONS, creation.OPERATIONS[1])
     diam = 2 * a.radius if a.radius else cfg.create_diameter
     cands = [c for c in standards.propose("trou", diam, cfg) if not c.entry.taper]
     if cands:
         obj.Standard, obj.Designation = cands[0].entry.standard, cands[0].entry.name
     obj.Depth = cfg.default_depth
     try:
-        p = creation.plan(a, shape, obj.Operation, feature.spec_of(obj).d / 2, cfg.default_depth, False)
+        p = creation.plan(a, shape, feature.op(obj), feature.spec_of(obj).d / 2, cfg.default_depth, False)
         obj.Depth = builder.default_depth(p.thickness, cfg) if p.thickness else cfg.default_depth
     except NotThreadable:
         pass
@@ -213,7 +214,7 @@ def init_defaults(obj, body, face_name, cfg):
     else:
         info, side = detect.find_default(shape, cfg, _other_bodies(obj.Document, body))
         if info is None:
-            raise NotThreadable("Aucune face cylindrique filetable trouvée : sélectionne une face")
+            raise NotThreadable(tr("Aucune face cylindrique filetable trouvée : sélectionne une face"))
     obj.FaceName = info["face_name"]
     obj.HintCenter, obj.HintAxis, obj.HintRadius = info["center"], info["axis"], info["R"]
     obj.Side = side
@@ -232,9 +233,9 @@ def init_defaults(obj, body, face_name, cfg):
 class CommandThread:
     def GetResources(self):
         return {"Pixmap": feature.ICON,
-                "MenuText": "Filetage / taraudage",
-                "ToolTip": "Crée un filetage (arbre) ou un taraudage (trou) sur une face cylindrique.\n"
-                           "Norme ISO, impériale, conique, trapézoïdale ou dimensions personnalisées."}
+                "MenuText": tr("Filetage / taraudage"),
+                "ToolTip": tr("Crée un filetage (arbre) ou un taraudage (trou) sur une face cylindrique.\n"
+                              "Norme ISO, impériale, conique, trapézoïdale ou dimensions personnalisées.")}
 
     def IsActive(self):
         return App.ActiveDocument is not None
@@ -244,24 +245,24 @@ class CommandThread:
         sel = Gui.Selection.getSelectionEx()
         body = _active_body(sel)
         if body is None:
-            _message("Active d'abord un corps PartDesign (double-clic sur le corps).")
+            _message(tr("Active d'abord un corps PartDesign (double-clic sur le corps)."))
             return
         tip = body.Tip
         if tip is None or tip.Shape.isNull() or not tip.Shape.Solids:
-            _message("Le corps actif ne contient pas encore de solide à fileter.")
+            _message(tr("Le corps actif ne contient pas encore de solide à fileter."))
             return
         cfg = ThreadConfig.load()
         sel0 = Gui.Selection.getSelectionEx("", 0)
         restore = [(doc.Name, s.Object.Name, sub) for s in sel0 for sub in (s.SubElementNames or [""])]
         face_name = _preselected_face(sel0, body, tip.Shape)
         sup = None if face_name else selection_support(sel0, body, tip.Shape)
-        doc.openTransaction("Filetage")
+        doc.openTransaction(tr("Filetage"))
         if sup and "external" in sup:                  # point hors du corps : lien de forme dans le corps
             try:
                 sup["link"] = point_binder(body, *sup["external"])
                 sup["anchor"] = creation.resolve(sup["link"], tip.Shape)
             except Exception as e:
-                App.Console.PrintWarning("ThreadTool : point extérieur non utilisable : %s\n" % e)
+                App.Console.PrintWarning(tr("ThreadTool : point extérieur non utilisable : %s") % e + "\n")
                 sup = None
         obj = feature.create(body)
         try:

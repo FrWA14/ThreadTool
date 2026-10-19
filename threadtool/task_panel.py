@@ -8,6 +8,7 @@ from .axis import NotThreadable, radial
 from .config import ThreadConfig
 from . import detect, builder, standards, thread_data, thread_spec, feature, creation, heads
 from .preview import Preview
+from .i18n import tr, enum_get, enum_put
 
 QDBB = QtWidgets.QDialogButtonBox
 
@@ -32,7 +33,7 @@ def _field(le, text):
 def body_of(obj):
     b = obj.getParentGeoFeatureGroup()
     if b is None or not b.isDerivedFrom("PartDesign::Body"):
-        raise NotThreadable("La fonction doit être dans un corps PartDesign")
+        raise NotThreadable(tr("La fonction doit être dans un corps PartDesign"))
     return b
 
 
@@ -73,7 +74,7 @@ class ThreadTaskPanel:
         self.sel_mode = None
         self._busy = False
         if not new:
-            self.doc.openTransaction("Modifier le filetage")
+            self.doc.openTransaction(tr("Modifier le filetage"))
         self.form = self._build_ui()
         self.preview = Preview(self.body.getGlobalPlacement())
         self.timer = QtCore.QTimer()
@@ -91,24 +92,24 @@ class ThreadTaskPanel:
     # ------------------------------------------------------------------ interface
     def _build_ui(self):
         w = QtWidgets.QWidget()
-        w.setWindowTitle("Filetage / taraudage")
+        w.setWindowTitle(tr("Filetage / taraudage"))
         lay = QtWidgets.QVBoxLayout(w)
 
-        g = QtWidgets.QGroupBox("Opération")
+        g = QtWidgets.QGroupBox(tr("Opération"))
         ho = QtWidgets.QHBoxLayout(g)
         self.cb_op = QtWidgets.QComboBox()
-        for op, label in zip(creation.OPERATIONS, ("Fileter / tarauder la face existante",
-                                                   "Trou taraudé (percer + tarauder)",
-                                                   "Extrusion filetée (ajouter + fileter)")):
+        for op, label in zip(creation.OPERATIONS, (tr("Fileter / tarauder la face existante"),
+                                                   tr("Trou taraudé (percer + tarauder)"),
+                                                   tr("Extrusion filetée (ajouter + fileter)"))):
             self.cb_op.addItem(label, op)
-        self.cb_op.setToolTip("Trou / extrusion : créés sur l'appui (esquisse, point, cercle ou face plane),\n"
-                              "au Ø nominal du filetage choisi, puis filetés dans la même fonction")
+        self.cb_op.setToolTip(tr("Trou / extrusion : créés sur l'appui (esquisse, point, cercle ou face plane),\n"
+                              "au Ø nominal du filetage choisi, puis filetés dans la même fonction"))
         ho.addWidget(self.cb_op, 1)
         lay.addWidget(g)
 
         # Références, comme les champs « Face » de Protrusion / Poche : bouton de sélection à gauche,
         # champ texte « Libellé:FaceN » à droite (modifiable ; vide = automatique).
-        g = QtWidgets.QGroupBox("Références")
+        g = QtWidgets.QGroupBox(tr("Références"))
         f = QtWidgets.QGridLayout(g)
         f.setColumnStretch(1, 1)
 
@@ -120,27 +121,27 @@ class ThreadTaskPanel:
             btn.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
             le = QtWidgets.QLineEdit()
             le.setClearButtonEnabled(True)
-            le.setToolTip(tip + "\nTape « Libellé:FaceN » ou efface le texte pour revenir à l'automatique.")
+            le.setToolTip(tip + tr("\nTape « Libellé:FaceN » ou efface le texte pour revenir à l'automatique."))
             f.addWidget(btn, r, 0)
             f.addWidget(le, r, 1)
             return btn, le
 
-        self.btn_sup, self.lbl_sup = row(0, "Appui", "Esquisse (tous ses cercles ou points), point, sommet, "
-                                                     "cercle ou face plane où créer le trou / extrusion")
+        self.btn_sup, self.lbl_sup = row(0, tr("Appui"), tr("Esquisse (tous ses cercles ou points), point, sommet, "
+                                                     "cercle ou face plane où créer le trou / extrusion"))
         self.btn_flip_sup = QtWidgets.QToolButton()
         self.btn_flip_sup.setText("⇅")
-        self.btn_flip_sup.setToolTip("Inverser le sens du trou / extrusion")
+        self.btn_flip_sup.setToolTip(tr("Inverser le sens du trou / extrusion"))
         f.addWidget(self.btn_flip_sup, 0, 2)
-        self.btn_face, self.lbl_face = row(1, "Face", "Face cylindrique à fileter / tarauder")
-        self.btn_axis, self.lbl_axis = row(2, "Axe", "Axe imposé (facultatif) : arête droite, cercle, face plane ou axe de l'Origin")
-        self.btn_ref, self.lbl_ref = row(3, "Début", "Face ou plan de début du filet (surligné en violet)")
+        self.btn_face, self.lbl_face = row(1, tr("Face"), tr("Face cylindrique à fileter / tarauder"))
+        self.btn_axis, self.lbl_axis = row(2, tr("Axe"), tr("Axe imposé (facultatif) : arête droite, cercle, face plane ou axe de l'Origin"))
+        self.btn_ref, self.lbl_ref = row(3, tr("Début"), tr("Face ou plan de début du filet (surligné en violet)"))
         self.btn_flip = QtWidgets.QToolButton()
         self.btn_flip.setText("⇅")
-        self.btn_flip.setToolTip("Inverser : partir de l'autre extrémité de la face")
+        self.btn_flip.setToolTip(tr("Inverser : partir de l'autre extrémité de la face"))
         f.addWidget(self.btn_flip, 3, 2)
-        lbl = QtWidgets.QLabel("Longueur")
-        lbl.setToolTip("Longueur totale utilisable : reprise de la fonction qui a créé la face "
-                       "(Protrusion, Poche, Perçage…), sinon mesurée sur la géométrie")
+        lbl = QtWidgets.QLabel(tr("Longueur"))
+        lbl.setToolTip(tr("Longueur totale utilisable : reprise de la fonction qui a créé la face "
+                       "(Protrusion, Poche, Perçage…), sinon mesurée sur la géométrie"))
         self.lbl_len = QtWidgets.QLineEdit()
         self.lbl_len.setReadOnly(True)
         f.addWidget(lbl, 4, 0)
@@ -155,109 +156,109 @@ class ThreadTaskPanel:
             btn.setMinimumWidth(70)
         lay.addWidget(g)
 
-        g = QtWidgets.QGroupBox("Filetage")
+        g = QtWidgets.QGroupBox(tr("Filetage"))
         f = QtWidgets.QFormLayout(g)
         self.cb_std = QtWidgets.QComboBox()
-        self.cb_std.addItem("★ Proposition automatique", "auto")
+        self.cb_std.addItem(tr("★ Proposition automatique"), "auto")
         for key, label, _std, _ser in thread_data.CHOICES:
             self.cb_std.addItem(label, key)
-        self.cb_std.addItem("Personnalisé (hors norme)", "custom")
+        self.cb_std.addItem(tr("Personnalisé (hors norme)"), "custom")
         self.cb_des = QtWidgets.QComboBox()
         for cb in (self.cb_std, self.cb_des):
             cb.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToMinimumContentsLengthWithIcon)
             cb.setMinimumContentsLength(12)
         self.lbl_info = QtWidgets.QLabel("")
         self.lbl_info.setWordWrap(True)
-        self.ck_pitch = QtWidgets.QCheckBox("personnalisé")
-        self.ck_pitch.setToolTip("Garder la norme et le Ø choisis, avec un autre pas (ex. M3 au pas de 0,4)")
+        self.ck_pitch = QtWidgets.QCheckBox(tr("personnalisé"))
+        self.ck_pitch.setToolTip(tr("Garder la norme et le Ø choisis, avec un autre pas (ex. M3 au pas de 0,4)"))
         self.sp_pitch = _dspin(0.05, 50, 0.05)
         hpp = QtWidgets.QHBoxLayout()
         hpp.addWidget(self.sp_pitch, 1)
         hpp.addWidget(self.ck_pitch)
-        f.addRow("Norme / format", self.cb_std)
-        f.addRow("Désignation", self.cb_des)
-        f.addRow("Pas", hpp)
+        f.addRow(tr("Norme / format"), self.cb_std)
+        f.addRow(tr("Désignation"), self.cb_des)
+        f.addRow(tr("Pas"), hpp)
         f.addRow(self.lbl_info)
         lay.addWidget(g)
 
-        self.grp_custom = QtWidgets.QGroupBox("Dimensions personnalisées")
+        self.grp_custom = QtWidgets.QGroupBox(tr("Dimensions personnalisées"))
         f = QtWidgets.QFormLayout(self.grp_custom)
         self.cb_preset = QtWidgets.QComboBox()
-        self.btn_preset_save = QtWidgets.QPushButton("Enregistrer…")
-        self.btn_preset_del = QtWidgets.QPushButton("Supprimer")
+        self.btn_preset_save = QtWidgets.QPushButton(tr("Enregistrer…"))
+        self.btn_preset_del = QtWidgets.QPushButton(tr("Supprimer"))
         hp = QtWidgets.QHBoxLayout()
         hp.addWidget(self.cb_preset, 1)
         hp.addWidget(self.btn_preset_save)
         hp.addWidget(self.btn_preset_del)
         self.sp_cd = _dspin(0, 1000, 0.1)
-        self.sp_cd.setSpecialValueText("garder le Ø de la face")
+        self.sp_cd.setSpecialValueText(tr("garder le Ø de la face"))
         self.sp_cp = _dspin(0.05, 50, 0.1)
         self.sp_cs = QtWidgets.QSpinBox()
         self.sp_cs.setRange(1, 12)
         self.sp_ca = _dspin(0, 60, 1, 1, " °")
         self.sp_cb = _dspin(0, 60, 1, 1, " °")
         self.sp_ch = _dspin(0, 20, 0.05)
-        self.sp_ch.setSpecialValueText("auto")
+        self.sp_ch.setSpecialValueText(tr("auto"))
         self.sp_cc = _dspin(0, 20, 0.05)
-        self.sp_cc.setSpecialValueText("auto")
-        self.ck_ct = QtWidgets.QCheckBox("Conique 1:16")
-        f.addRow("Préréglage", hp)
-        f.addRow("Ø nominal", self.sp_cd)
-        f.addRow("Pas", self.sp_cp)
-        f.addRow("Nombre de filets", self.sp_cs)
-        f.addRow("Demi-angle flanc 1", self.sp_ca)
-        f.addRow("Demi-angle flanc 2", self.sp_cb)
-        f.addRow("Profondeur du filet", self.sp_ch)
-        f.addRow("Méplat de sommet", self.sp_cc)
+        self.sp_cc.setSpecialValueText(tr("auto"))
+        self.ck_ct = QtWidgets.QCheckBox(tr("Conique 1:16"))
+        f.addRow(tr("Préréglage"), hp)
+        f.addRow(tr("Ø nominal"), self.sp_cd)
+        f.addRow(tr("Pas"), self.sp_cp)
+        f.addRow(tr("Nombre de filets"), self.sp_cs)
+        f.addRow(tr("Demi-angle flanc 1"), self.sp_ca)
+        f.addRow(tr("Demi-angle flanc 2"), self.sp_cb)
+        f.addRow(tr("Profondeur du filet"), self.sp_ch)
+        f.addRow(tr("Méplat de sommet"), self.sp_cc)
         f.addRow(self.ck_ct)
         lay.addWidget(self.grp_custom)
 
-        g = QtWidgets.QGroupBox("Options")
+        g = QtWidgets.QGroupBox(tr("Options"))
         f = QtWidgets.QFormLayout(g)
         self.sp_depth = _dspin(0.01, 10000, 1, 2)
-        self.btn_full = QtWidgets.QPushButton("Jusqu'au bout")
+        self.btn_full = QtWidgets.QPushButton(tr("Jusqu'au bout"))
         hd = QtWidgets.QHBoxLayout()
         hd.addWidget(self.sp_depth, 1)
         hd.addWidget(self.btn_full)
         self.lbl_turns = QtWidgets.QLabel("")
-        self.lbl_turns.setToolTip("Longueur filetée exprimée en nombre de filets (profondeur / pas)")
+        self.lbl_turns.setToolTip(tr("Longueur filetée exprimée en nombre de filets (profondeur / pas)"))
         self.sp_offset = _dspin(0, 1000, 0.5, 2)
-        self.sp_offset.setToolTip("Le filet commence à cette distance de la face (ou du plan) de début.\n"
+        self.sp_offset.setToolTip(tr("Le filet commence à cette distance de la face (ou du plan) de début.\n"
                                   "Entre les deux, le Ø est ramené au Ø de pied du filet si besoin\n"
-                                  "(matière retirée, visible dans l'aperçu).")
+                                  "(matière retirée, visible dans l'aperçu)."))
         self.sp_clr = _dspin(0, 2, 0.05)
-        self.ck_preview = QtWidgets.QCheckBox("Prévisualisation")
-        self.rb_right = QtWidgets.QRadioButton("À droite")
-        self.rb_left = QtWidgets.QRadioButton("À gauche")
+        self.ck_preview = QtWidgets.QCheckBox(tr("Prévisualisation"))
+        self.rb_right = QtWidgets.QRadioButton(tr("À droite"))
+        self.rb_left = QtWidgets.QRadioButton(tr("À gauche"))
         hs = QtWidgets.QHBoxLayout()
         hs.addWidget(self.rb_right)
         hs.addWidget(self.rb_left)
         self.bg_hand = QtWidgets.QButtonGroup(w)
         self.bg_hand.addButton(self.rb_right)
         self.bg_hand.addButton(self.rb_left)
-        f.addRow("Décalage du début", self.sp_offset)
-        f.addRow("Profondeur", hd)
+        f.addRow(tr("Décalage du début"), self.sp_offset)
+        f.addRow(tr("Profondeur"), hd)
         f.addRow("", self.lbl_turns)
-        f.addRow("Jeu (sur le Ø)", self.sp_clr)
+        f.addRow(tr("Jeu (sur le Ø)"), self.sp_clr)
         f.addRow(self.ck_preview)
-        f.addRow("Sens du pas", hs)
+        f.addRow(tr("Sens du pas"), hs)
         lay.addWidget(g)
 
-        g = self.grp_head = QtWidgets.QGroupBox("Tête")
+        g = self.grp_head = QtWidgets.QGroupBox(tr("Tête"))
         f = QtWidgets.QFormLayout(g)
         self.cb_head = QtWidgets.QComboBox()
         self.cb_head.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToMinimumContentsLengthWithIcon)
         self.cb_head.setMinimumContentsLength(12)
         self.cb_hpos = QtWidgets.QComboBox()
         for pos in heads.POSITIONS:
-            self.cb_hpos.addItem(pos, pos)
-        self.cb_hpos.setToolTip("Face opposée : à l'autre bout de la tige (vis classique)\n"
-                                "Face de début : sur la face d'où part le filet")
+            self.cb_hpos.addItem(tr(pos), pos)
+        self.cb_hpos.setToolTip(tr("Face opposée : à l'autre bout de la tige (vis classique)\n"
+                                "Face de début : sur la face d'où part le filet"))
         self.cb_drive = QtWidgets.QComboBox()
         for dr in heads.DRIVES:
-            self.cb_drive.addItem(dr, dr)
-        self.ck_hcustom = QtWidgets.QCheckBox("Dimensions personnalisées")
-        self.ck_hcustom.setToolTip("Partir des cotes de la norme et les modifier")
+            self.cb_drive.addItem(tr(dr), dr)
+        self.ck_hcustom = QtWidgets.QCheckBox(tr("Dimensions personnalisées"))
+        self.ck_hcustom.setToolTip(tr("Partir des cotes de la norme et les modifier"))
         self.sp_hd = _dspin(0, 1000, 0.1)
         self.sp_hh = _dspin(0, 1000, 0.1)
         self.sp_ha = _dspin(30, 150, 1, 1, " °")
@@ -265,13 +266,13 @@ class ThreadTaskPanel:
         self.sp_dd = _dspin(0, 100, 0.1)
         self.lbl_head = QtWidgets.QLabel("")
         self.lbl_head.setWordWrap(True)
-        f.addRow("Forme", self.cb_head)
-        f.addRow("Position", self.cb_hpos)
-        f.addRow("Empreinte", self.cb_drive)
+        f.addRow(tr("Forme"), self.cb_head)
+        f.addRow(tr("Position"), self.cb_hpos)
+        f.addRow(tr("Empreinte"), self.cb_drive)
         f.addRow(self.ck_hcustom)
-        self.lbl_hd, self.lbl_hh = QtWidgets.QLabel("Ø"), QtWidgets.QLabel("Hauteur")
-        self.lbl_ha, self.lbl_ds, self.lbl_dd = (QtWidgets.QLabel("Angle"), QtWidgets.QLabel("Taille empreinte"),
-                                                 QtWidgets.QLabel("Prof. empreinte"))
+        self.lbl_hd, self.lbl_hh = QtWidgets.QLabel("Ø"), QtWidgets.QLabel(tr("Hauteur"))
+        self.lbl_ha, self.lbl_ds, self.lbl_dd = (QtWidgets.QLabel(tr("Angle")), QtWidgets.QLabel(tr("Taille empreinte")),
+                                                 QtWidgets.QLabel(tr("Prof. empreinte")))
         f.addRow(self.lbl_hd, self.sp_hd)
         f.addRow(self.lbl_hh, self.sp_hh)
         f.addRow(self.lbl_ha, self.sp_ha)
@@ -281,10 +282,10 @@ class ThreadTaskPanel:
         self._head_kind = None
         lay.addWidget(g)
 
-        g = self.grp_kind = QtWidgets.QGroupBox("Type")
+        g = self.grp_kind = QtWidgets.QGroupBox(tr("Type"))
         hk = QtWidgets.QHBoxLayout(g)
-        self.rb_tap = QtWidgets.QRadioButton("Taraudage (trou)")
-        self.rb_thr = QtWidgets.QRadioButton("Filetage (arbre)")
+        self.rb_tap = QtWidgets.QRadioButton(tr("Taraudage (trou)"))
+        self.rb_thr = QtWidgets.QRadioButton(tr("Filetage (arbre)"))
         self.bg_kind = QtWidgets.QButtonGroup(w)
         self.bg_kind.addButton(self.rb_tap)
         self.bg_kind.addButton(self.rb_thr)
@@ -344,7 +345,7 @@ class ThreadTaskPanel:
         self.info, self.err = None, None
         self.anchor, self.cplan = None, None
         if self.base is None:
-            self.err = "Aucune fonction précédente dans le corps"
+            self.err = tr("Aucune fonction précédente dans le corps")
             return
         shape = self.base.Shape
         if self.creating():
@@ -354,7 +355,7 @@ class ThreadTaskPanel:
             except NotThreadable as e:
                 self.err = str(e)
             except Exception as e:
-                self.err = "Erreur : %s" % e
+                self.err = tr("Erreur : %s") % e
             return
         try:
             face = feature.find_face(self.obj, shape, self.cfg)
@@ -364,12 +365,12 @@ class ThreadTaskPanel:
         except NotThreadable as e:
             self.err = str(e)
         except Exception as e:
-            self.err = "Erreur : %s" % e
+            self.err = tr("Erreur : %s") % e
 
     def kind(self):
         if self.creating():
-            return "trou" if self.obj.Operation == creation.OPERATIONS[1] else "arbre"
-        forced = {"Taraudage": "trou", "Filetage": "arbre"}.get(self.obj.Mode)
+            return "trou" if feature.op(self.obj) == creation.OPERATIONS[1] else "arbre"
+        forced = {"Taraudage": "trou", "Filetage": "arbre"}.get(feature.mode(self.obj))
         return forced or (self.info["kind"] if self.info else "arbre")
 
     def available(self):
@@ -392,7 +393,7 @@ class ThreadTaskPanel:
     def load_from_obj(self):
         self._busy = True
         o = self.obj
-        self.cb_op.setCurrentIndex(max(0, self.cb_op.findData(o.Operation)))
+        self.cb_op.setCurrentIndex(max(0, self.cb_op.findData(feature.op(o))))
         self.update_mode_ui()
         self.refresh_ref_fields()
         if o.Standard == "custom":
@@ -432,7 +433,7 @@ class ThreadTaskPanel:
         for wdg in self.creation_widgets:
             wdg.setVisible(c)
         self.grp_kind.setVisible(not c)
-        self.btn_full.setVisible(not c or self.obj.Operation == creation.OPERATIONS[1])
+        self.btn_full.setVisible(not c or feature.op(self.obj) == creation.OPERATIONS[1])
 
     def start_faces(self):
         """Faces (ou disque du plan) où commence le filet : surlignées en violet."""
@@ -467,12 +468,12 @@ class ThreadTaskPanel:
         return "%s:%s" % (ob.Label, subs[0]) if subs and subs[0] else ob.Label
 
     def _side_text(self):
-        return "côté +axe" if self.obj.Side == "high" else "côté −axe"
+        return tr("côté +axe") if self.obj.Side == "high" else tr("côté −axe")
 
     def _ref_text(self):
         """Texte gris du champ « Début » quand il est automatique."""
         if not self.info and not self.creating():
-            return "Auto : bout libre de la face"
+            return tr("Auto : bout libre de la face")
         names = []
         if self.info and self.base is not None:
             for g in self.start_faces():
@@ -480,7 +481,7 @@ class ThreadTaskPanel:
                     names.append(detect.face_name(self.base.Shape, g))
                 except Exception:
                     pass
-        return "Auto : %s:%s (bout libre, %s)" % (self.base.Label if self.base else "?",
+        return tr("Auto : %s:%s (bout libre, %s)") % (self.base.Label if self.base else "?",
                                                    ", ".join(dict.fromkeys(names)) or "?", self._side_text())
 
     def refresh_ref_fields(self):
@@ -488,23 +489,23 @@ class ThreadTaskPanel:
         for le in (self.lbl_face, self.lbl_axis, self.lbl_ref, self.lbl_sup):
             le.blockSignals(True)
         _field(self.lbl_sup, self._link_text(o.Support))
-        self.lbl_sup.setPlaceholderText("Aucun appui sélectionné")
+        self.lbl_sup.setPlaceholderText(tr("Aucun appui sélectionné"))
         if self.creating():
             _field(self.lbl_face, "")
-            self.lbl_faceinfo.setText(("Appui : " + self.anchor.desc) if self.anchor else (self.err or ""))
+            self.lbl_faceinfo.setText((tr("Appui : %s") % self.anchor.desc) if self.anchor else (self.err or ""))
         elif self.info:
             _field(self.lbl_face, "%s:%s" % (self.base.Label, o.FaceName))
             src = feature.source_feature(o, self.info)
             self.lbl_faceinfo.setText("%s Ø %.3f%s%s" % (
-                "Trou" if self.info["kind"] == "trou" else "Arbre", self.info["diameter"],
-                " (conique 1:16)" if self.info["half_angle"] else "",
-                " — face créée par %s" % src["label"] if src else ""))
+                tr("Trou") if self.info["kind"] == "trou" else tr("Arbre"), self.info["diameter"],
+                tr(" (conique 1:16)") if self.info["half_angle"] else "",
+                tr(" — face créée par %s") % src["label"] if src else ""))
         else:
             _field(self.lbl_face, "")
             self.lbl_faceinfo.setText(self.err or "")
-        self.lbl_face.setPlaceholderText("Aucune face sélectionnée")
+        self.lbl_face.setPlaceholderText(tr("Aucune face sélectionnée"))
         _field(self.lbl_axis, self._link_text(o.AxisReference))
-        self.lbl_axis.setPlaceholderText("Auto : axe de la face")
+        self.lbl_axis.setPlaceholderText(tr("Auto : axe de la face"))
         _field(self.lbl_ref, self._link_text(o.HeightReference))
         self.lbl_ref.setPlaceholderText(self._ref_text())
         if o.HeightReference:
@@ -525,7 +526,7 @@ class ThreadTaskPanel:
             o = self.doc.getObject(label)
             objs = [o] if o else []
         if not objs:
-            raise NotThreadable("Aucun objet nommé « %s »" % label)
+            raise NotThreadable(tr("Aucun objet nommé « %s »") % label)
         return objs[0]
 
     def on_ref_text(self, mode):
@@ -557,7 +558,7 @@ class ThreadTaskPanel:
                 sub = sub.strip()
                 if mode == "face":
                     if not sub.startswith("Face"):
-                        raise NotThreadable("Format attendu : Libellé:FaceN")
+                        raise NotThreadable(tr("Format attendu : Libellé:FaceN"))
                     self.apply_face(Part.getShape(ob, sub, needSubElement=True))
                 else:
                     self.apply_link(mode, ob, sub)
@@ -565,7 +566,7 @@ class ThreadTaskPanel:
         except NotThreadable as e:
             self.show_msg(str(e), "error")
         except Exception as e:
-            self.show_msg("Référence non utilisable : %s" % e, "error")
+            self.show_msg(tr("Référence non utilisable : %s") % e, "error")
         self.refresh_ref_fields()
         self.fill_designations()
         self.schedule()
@@ -575,7 +576,7 @@ class ThreadTaskPanel:
         from .commands import _other_bodies
         info, side = detect.find_default(self.base.Shape, self.cfg, _other_bodies(self.doc, self.body))
         if info is None:
-            raise NotThreadable("Aucune face cylindrique filetable trouvée")
+            raise NotThreadable(tr("Aucune face cylindrique filetable trouvée"))
         self.obj.FaceName = info["face_name"]
         self.obj.HintRadius = 0.0
         self.obj.Side = side
@@ -586,7 +587,7 @@ class ThreadTaskPanel:
         """Face choisie (dans le repère du corps) : retrouvée dans la fonction précédente."""
         name = match_face(self.base.Shape, face_local)
         if name is None:
-            raise NotThreadable("Cette face n'appartient pas à la fonction précédente du corps")
+            raise NotThreadable(tr("Cette face n'appartient pas à la fonction précédente du corps"))
         self.obj.FaceName = name
         self.obj.HintRadius = 0.0
         self.reanalyse()
@@ -644,7 +645,7 @@ class ThreadTaskPanel:
         for i, c in enumerate(cands):
             star = "★ " if c.entry.name in top else ""
             self.cb_des.addItem("%s%s  (%+.2f)" % (star, c.entry.name, c.delta), c.entry.name)
-            self.cb_des.setItemData(i, "Ø de référence %.3f mm, écart %+.3f mm" % (c.ref_diameter, c.delta),
+            self.cb_des.setItemData(i, tr("Ø de référence %.3f mm, écart %+.3f mm") % (c.ref_diameter, c.delta),
                                     QtCore.Qt.ToolTipRole)
             if c.entry.name == self.obj.Designation and current < 0:
                 current = i
@@ -682,17 +683,19 @@ class ThreadTaskPanel:
                 self._head_kind = kind
                 self.cb_head.clear()
                 if kind == "trou":
-                    self.cb_head.addItem("Aucune", heads.NONE)
+                    self.cb_head.addItem(tr(heads.NONE), heads.NONE)
                     for key, (label, _t, _a, _tb) in heads.HOLE_CUTS.items():
                         self.cb_head.addItem(label, key)
                 else:
-                    self.cb_head.addItem("Aucune", heads.NONE)
+                    self.cb_head.addItem(tr(heads.NONE), heads.NONE)
                     for key, (label, _s, _d, _tb) in heads.SCREW_HEADS.items():
                         self.cb_head.addItem(label, key)
-            cur = o.HoleHead if kind == "trou" else o.ScrewHead
+            cur = (enum_get(o, "HoleHead", heads.HOLE_HEADS) if kind == "trou"
+                   else enum_get(o, "ScrewHead", heads.SCREW_HEAD_NAMES))
+            drive = enum_get(o, "Drive", heads.DRIVES)
             self.cb_head.setCurrentIndex(max(0, self.cb_head.findData(cur)))
-            self.cb_hpos.setCurrentIndex(max(0, self.cb_hpos.findData(o.HeadPosition)))
-            self.cb_drive.setCurrentIndex(max(0, self.cb_drive.findData(o.Drive)))
+            self.cb_hpos.setCurrentIndex(max(0, self.cb_hpos.findData(enum_get(o, "HeadPosition", heads.POSITIONS))))
+            self.cb_drive.setCurrentIndex(max(0, self.cb_drive.findData(drive)))
             self.ck_hcustom.setChecked(o.HeadCustom)
             custom_std = o.Standard == "custom"
             active = cur != heads.NONE and not custom_std
@@ -712,12 +715,12 @@ class ThreadTaskPanel:
                 except Exception as e:
                     info = str(e)
             cut_type = h.get("type") if h and kind == "trou" else None
-            self.lbl_hd.setText("Ø" if kind == "trou" else ("Sur plats" if h and h["shape"] in ("hex", "square") else "Ø de tête"))
-            self.lbl_hh.setText("Profondeur" if kind == "trou" else "Hauteur")
+            self.lbl_hd.setText("Ø" if kind == "trou" else (tr("Sur plats") if h and h["shape"] in ("hex", "square") else tr("Ø de tête")))
+            self.lbl_hh.setText(tr("Profondeur") if kind == "trou" else tr("Hauteur"))
             show = {self.sp_hd: active, self.sp_hh: active and cut_type != "fraisage",
                     self.sp_ha: active and cut_type == "fraisage",
-                    self.sp_ds: active and screw and o.Drive != heads.NONE,
-                    self.sp_dd: active and screw and o.Drive != heads.NONE}
+                    self.sp_ds: active and screw and drive != heads.NONE,
+                    self.sp_dd: active and screw and drive != heads.NONE}
             for sp, lbl in ((self.sp_hd, self.lbl_hd), (self.sp_hh, self.lbl_hh), (self.sp_ha, self.lbl_ha),
                             (self.sp_ds, self.lbl_ds), (self.sp_dd, self.lbl_dd)):
                 sp.setVisible(show[sp])
@@ -731,15 +734,16 @@ class ThreadTaskPanel:
             self.sp_dd.setValue(o.DriveDepth.Value)
             if h and not info:
                 if kind == "trou":
-                    info = ("Lamage Ø %.2f × %.2f mm" % (h["diameter"], h["depth"]) if h["type"] == "lamage"
-                            else "Fraisage Ø %.2f à %.0f°" % (h["diameter"], h["angle"]))
+                    info = (tr("Lamage Ø %.2f × %.2f mm") % (h["diameter"], h["depth"]) if h["type"] == "lamage"
+                            else tr("Fraisage Ø %.2f à %.0f°") % (h["diameter"], h["angle"]))
                     if h["type"] == "lamage":
-                        info += " — le filet commence sous le lamage"
+                        info += tr(" — le filet commence sous le lamage")
                 else:
-                    info = "Tête %.2f × %.2f mm%s" % (h["size"], h["height"],
-                                                      (" — empreinte " + h["drive_label"]) if h["drive_label"] else "")
+                    info = tr("Tête %.2f × %.2f mm") % (h["size"], h["height"])
+                    if h["drive_label"]:
+                        info += tr(" — empreinte %s") % h["drive_label"]
                 if not o.HeadCustom:
-                    info += " (norme %s%s)" % (h["name"], ", en équivalence" if o.Standard != "ISO" else "")
+                    info += (tr(" (norme %s)") if o.Standard == "ISO" else tr(" (norme %s, en équivalence)")) % h["name"]
             self.lbl_head.setText(info)
             self.lbl_head.setStyleSheet("color:#b06000" if custom_std and cur != heads.NONE else "")
             if custom_std and cur == heads.NONE:
@@ -753,11 +757,11 @@ class ThreadTaskPanel:
             return
         key = self.cb_head.currentData() or heads.NONE
         if self.kind() == "trou":
-            self.obj.HoleHead = key
+            enum_put(self.obj, "HoleHead", heads.HOLE_HEADS, key)
         else:
-            self.obj.ScrewHead = key
-            if key in heads.SCREW_HEADS:
-                self.obj.Drive = heads.SCREW_HEADS[key][2]        # empreinte habituelle de cette tête
+            enum_put(self.obj, "ScrewHead", heads.SCREW_HEAD_NAMES, key)
+            if key in heads.SCREW_HEADS:                      # empreinte habituelle de cette tête
+                enum_put(self.obj, "Drive", heads.DRIVES, heads.SCREW_HEADS[key][2])
         self.obj.HeadCustom = False
         self.refresh_head()
         self.schedule()
@@ -765,11 +769,12 @@ class ThreadTaskPanel:
     def on_drive(self, *_):
         if self._busy:
             return
-        self.obj.Drive = self.cb_drive.currentData()
-        if self.obj.HeadCustom and self.obj.ScrewHead in heads.SCREW_HEADS:   # cotes d'empreinte de la norme
-            h = heads.screw_head(self.obj.ScrewHead, feature.spec_of(self.obj).d, self.obj.Drive)
-            dd = heads.drive_default(self.obj.Drive, self.obj.ScrewHead, feature.spec_of(self.obj).d,
-                                     self.obj.HeadDiameter.Value, self.obj.HeadHeight.Value) if self.obj.Drive != heads.NONE else None
+        drive = self.cb_drive.currentData()
+        enum_put(self.obj, "Drive", heads.DRIVES, drive)
+        screw = enum_get(self.obj, "ScrewHead", heads.SCREW_HEAD_NAMES)
+        if self.obj.HeadCustom and screw in heads.SCREW_HEADS:   # cotes d'empreinte de la norme
+            dd = heads.drive_default(drive, screw, feature.spec_of(self.obj).d,
+                                     self.obj.HeadDiameter.Value, self.obj.HeadHeight.Value) if drive != heads.NONE else None
             self.obj.DriveSize, self.obj.DriveDepth = (dd["size"], dd["depth"]) if dd else (0.0, 0.0)
         self.refresh_head()
         self.schedule()
@@ -778,7 +783,7 @@ class ThreadTaskPanel:
         if self._busy:
             return
         o = self.obj
-        o.HeadPosition = self.cb_hpos.currentData()
+        enum_put(o, "HeadPosition", heads.POSITIONS, self.cb_hpos.currentData())
         o.HeadCustom = self.ck_hcustom.isChecked()
         if o.HeadCustom:
             o.HeadDiameter, o.HeadHeight, o.HeadAngle = self.sp_hd.value(), self.sp_hh.value(), self.sp_ha.value()
@@ -802,7 +807,7 @@ class ThreadTaskPanel:
         custom = o.Standard == "custom"
         self.ck_pitch.setEnabled(not custom)
         if custom:
-            self.lbl_info.setText("Filetage personnalisé")
+            self.lbl_info.setText(tr("Filetage personnalisé"))
             self.sp_pitch.setEnabled(False)
             return
         try:
@@ -816,7 +821,7 @@ class ThreadTaskPanel:
             self.sp_pitch.blockSignals(False)
             txt = thread_data.describe(e)
             if spec.pitch_override:
-                txt = "Pas personnalisé — " + txt
+                txt = tr("Pas personnalisé — ") + txt
             self.lbl_info.setText(txt)
         except (KeyError, NotThreadable):
             self.lbl_info.setText("")
@@ -825,7 +830,7 @@ class ThreadTaskPanel:
         try:
             P = feature.spec_of(self.obj).lead
             n = self.obj.Depth.Value / P if P > 0 else 0
-            self.lbl_turns.setText("= %.2f filet%s (pas %.3g mm)" % (n, "s" if n >= 2 else "", P))
+            self.lbl_turns.setText((tr("= %.2f filets (pas %.3g mm)") if n >= 2 else tr("= %.2f filet (pas %.3g mm)")) % (n, P))
         except Exception:
             self.lbl_turns.setText("")
 
@@ -894,7 +899,8 @@ class ThreadTaskPanel:
         if self._busy or not self.info:
             return
         want = "trou" if self.rb_tap.isChecked() else "arbre"
-        self.obj.Mode = "Auto" if want == self.info["kind"] else ("Taraudage" if want == "trou" else "Filetage")
+        enum_put(self.obj, "Mode", feature.MODE_ENUM,
+                 "Auto" if want == self.info["kind"] else ("Taraudage" if want == "trou" else "Filetage"))
         self.fill_designations()
         self.schedule()
 
@@ -902,7 +908,7 @@ class ThreadTaskPanel:
         if self._busy:
             return
         was_creating = self.creating()
-        self.obj.Operation = self.cb_op.currentData()
+        enum_put(self.obj, "Operation", creation.OPERATIONS, self.cb_op.currentData())
         if self.creating() and not was_creating and not self.obj.Support and self.info:
             # face choisie (ou couture) sans appui : le trou / l'extrusion part du cercle du bout de départ
             link = feature.end_support(self.base, self.info, self.obj.Side)
@@ -971,7 +977,7 @@ class ThreadTaskPanel:
         self.schedule()
 
     def set_default_depth(self):
-        if self.creating() and self.obj.Operation != creation.OPERATIONS[1]:
+        if self.creating() and feature.op(self.obj) != creation.OPERATIONS[1]:
             return                                             # extrusion : la longueur est libre
         av = self.available()
         if av > 0:
@@ -1003,7 +1009,7 @@ class ThreadTaskPanel:
         self.on_value()
 
     def save_preset(self):
-        name, ok = QtWidgets.QInputDialog.getText(self.form, "Préréglage", "Nom du préréglage :")
+        name, ok = QtWidgets.QInputDialog.getText(self.form, tr("Préréglage"), tr("Nom du préréglage :"))
         if not ok or not name.strip():
             return
         presets = [p for p in thread_spec.presets_load(self.cfg) if p.name != name.strip()]
@@ -1037,23 +1043,23 @@ class ThreadTaskPanel:
         if mode is None:                                       # sélection annulée : on remet les textes
             self.refresh_ref_fields()
             return
-        for m, le, idle in (("support", self.lbl_sup, "Aucun appui sélectionné"),
-                            ("face", self.lbl_face, "Aucune face sélectionnée"),
-                            ("axis", self.lbl_axis, "Auto : axe de la face"),
+        for m, le, idle in (("support", self.lbl_sup, tr("Aucun appui sélectionné")),
+                            ("face", self.lbl_face, tr("Aucune face sélectionnée")),
+                            ("axis", self.lbl_axis, tr("Auto : axe de la face")),
                             ("ref", self.lbl_ref, self._ref_text() if self.info else "")):
-            le.setPlaceholderText({"support": "Cliquez sur une esquisse, un point, un cercle ou une face plane",
-                                   "face": "Cliquez sur une face du modèle",
-                                   "axis": "Cliquez sur une arête, un cercle ou un axe",
-                                   "ref": "Cliquez sur une face plane ou un plan"}[m] if m == mode else idle)
+            le.setPlaceholderText({"support": tr("Cliquez sur une esquisse, un point, un cercle ou une face plane"),
+                                   "face": tr("Cliquez sur une face du modèle"),
+                                   "axis": tr("Cliquez sur une arête, un cercle ou un axe"),
+                                   "ref": tr("Cliquez sur une face plane ou un plan")}[m] if m == mode else idle)
             if m == mode:
                 le.blockSignals(True)
                 le.clear()
                 le.blockSignals(False)
         if mode:
-            self.show_msg({"support": "Clique une esquisse, un point, un cercle ou une face plane",
-                           "face": "Clique la face cylindrique à fileter",
-                           "axis": "Clique une arête droite, un cercle, une face plane ou un axe",
-                           "ref": "Clique un plan ou une face plane"}[mode], "info")
+            self.show_msg({"support": tr("Clique une esquisse, un point, un cercle ou une face plane"),
+                           "face": tr("Clique la face cylindrique à fileter"),
+                           "axis": tr("Clique une arête droite, un cercle, une face plane ou un axe"),
+                           "ref": tr("Clique un plan ou une face plane")}[mode], "info")
 
     def addSelection(self, doc, obj_name, sub, pnt):
         if not self.sel_mode or doc != self.doc.Name:
@@ -1072,12 +1078,12 @@ class ThreadTaskPanel:
                     self.apply_support(point_binder(self.body, top, sub)[0], "", None)
                 else:
                     if leaf.getParentGeoFeatureGroup() is not self.body:
-                        raise NotThreadable("L'appui doit être dans le corps actif (ou un point)")
+                        raise NotThreadable(tr("L'appui doit être dans le corps actif (ou un point)"))
                     picked = to_local(Part.Vertex(App.Vector(*pnt)), self.body).Point if pnt else None
                     self.apply_support(leaf, leaf_sub, picked)
             elif mode == "face":
                 if not leaf_sub.startswith("Face"):
-                    raise NotThreadable("Sélectionne une face")
+                    raise NotThreadable(tr("Sélectionne une face"))
                 self.apply_face(to_local(Part.getShape(top, sub, needSubElement=True), self.body))
             else:
                 self.apply_link(mode, leaf, leaf_sub)
@@ -1087,7 +1093,7 @@ class ThreadTaskPanel:
         except NotThreadable as e:
             self.show_msg(str(e), "error")
         except Exception as e:
-            self.show_msg("Sélection non utilisable : %s" % e, "error")
+            self.show_msg(tr("Sélection non utilisable : %s") % e, "error")
         finally:
             self.sel_mode = None
             for b in (self.btn_face, self.btn_axis, self.btn_ref, self.btn_sup):
@@ -1139,8 +1145,8 @@ class ThreadTaskPanel:
             if p.length_source == "fonction" and src:
                 _field(self.lbl_len, "%.2f mm  (%s.%s)" % (p.available, src["label"], src["prop"]))
             else:
-                _field(self.lbl_len, "%.2f mm  (géométrie%s)" % (
-                    p.available, ", %s.%s non coté" % (src["label"], src["prop"]) if src and src["length"] is None else ""))
+                _field(self.lbl_len, tr("%.2f mm  (géométrie%s)") % (
+                    p.available, tr(", %s.%s non coté") % (src["label"], src["prop"]) if src and src["length"] is None else ""))
             if self.cfg.show_start_face:
                 self.preview.set_highlight(self.start_faces(), self.cfg.start_face_color)
             else:
@@ -1172,7 +1178,7 @@ class ThreadTaskPanel:
         except Exception as e:
             self.preview.clear_shapes()
             self.preview.set_highlight([], 0)
-            self.show_msg("Erreur : %s" % e, "error")
+            self.show_msg(tr("Erreur : %s") % e, "error")
 
     def update_creation_preview(self):
         """Trou / extrusion : cylindres au Ø nominal (rouge / vert), axe et disques de départ (violet).
@@ -1182,7 +1188,7 @@ class ThreadTaskPanel:
         self.cplan = None
         try:
             if not self.anchor:
-                raise NotThreadable(self.err or "Choisis un appui")
+                raise NotThreadable(self.err or tr("Choisis un appui"))
             cc = feature.creation_context(self.obj, self.base.Shape, self.cfg)
             p = self.cplan = cc["plan"]
             if self.cfg.show_axis:
@@ -1191,9 +1197,9 @@ class ThreadTaskPanel:
                 self.preview.set_axis(c - p.dir * ext, c + p.dir * (p.L + ext),
                                       color if self.cfg.axis_follow_type else self.cfg.axis_color, self.cfg.axis_width)
             if p.hole:
-                _field(self.lbl_len, "%.2f mm  (épaisseur de matière)" % p.thickness)
+                _field(self.lbl_len, tr("%.2f mm  (épaisseur de matière)") % p.thickness)
             else:
-                _field(self.lbl_len, "%.2f mm  (longueur de l'extrusion)" % p.L)
+                _field(self.lbl_len, tr("%.2f mm  (longueur de l'extrusion)") % p.L)
             self.preview.set_highlight(self.start_faces() if self.cfg.show_start_face else [],
                                        self.cfg.start_face_color)
             if self.ck_preview.isChecked():
@@ -1213,7 +1219,7 @@ class ThreadTaskPanel:
             self.preview.clear_shapes()
             self.preview.set_highlight([], 0)
             _field(self.lbl_len, "")
-            self.show_msg(str(e) if isinstance(e, NotThreadable) else "Erreur : %s" % e, "error")
+            self.show_msg(str(e) if isinstance(e, NotThreadable) else tr("Erreur : %s") % e, "error")
             self.set_ok_enabled(False)
 
     def set_ok_enabled(self, on):
@@ -1246,7 +1252,7 @@ class ThreadTaskPanel:
                 self.show_msg(str(e), "error")
                 return False
         elif not self.info:
-            self.show_msg(self.err or "Aucune face valide", "error")
+            self.show_msg(self.err or tr("Aucune face valide"), "error")
             return False
         QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
         try:
@@ -1257,7 +1263,7 @@ class ThreadTaskPanel:
         finally:
             QtWidgets.QApplication.restoreOverrideCursor()
         if not self.obj.isValid():
-            self.show_msg("Le calcul a échoué : %s" % self.obj.getStatusString(), "error")
+            self.show_msg(tr("Le calcul a échoué : %s") % self.obj.getStatusString(), "error")
             return False
         self._cleanup()
         self.doc.commitTransaction()

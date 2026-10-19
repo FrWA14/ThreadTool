@@ -8,12 +8,13 @@ import Part
 
 from .axis import NotThreadable, radial
 from . import detect, builder
+from .i18n import tr, N_
 
 V = App.Vector
-OPERATIONS = ["Existant", "Trou taraudé", "Extrusion filetée"]
-VOID_HOLE = "Enlèvement de matière dans le vide impossible"
-VOID_PAD = "Création d'un solide dans le vide impossible"
-NO_ARC = "La topographie ne présente aucun cercle ou arc pouvant être fileté"
+OPERATIONS = [N_("Existant"), N_("Trou taraudé"), N_("Extrusion filetée")]   # valeurs enregistrées (affichées traduites)
+VOID_HOLE = tr("Enlèvement de matière dans le vide impossible")
+VOID_PAD = tr("Création d'un solide dans le vide impossible")
+NO_ARC = tr("La topographie ne présente aucun cercle ou arc pouvant être fileté")
 
 
 class Anchor:
@@ -40,7 +41,7 @@ class Contact:
     (elle-même, ou celle qui s'appuie sur le cercle / l'arc le plus proche du point), sinon None."""
 
 
-_SURF = {"Plane": "plane", "Cylinder": "cylindrique", "Cone": "conique"}
+_SURF = {"Plane": N_("plane"), "Cylinder": N_("cylindrique"), "Cone": N_("conique")}
 
 
 def _arc_face(base, face, e):
@@ -73,10 +74,10 @@ def contact(base, p):
     ct = Contact()
     ct.face_name, ct.thread_face, ct.arc = "Face%d" % (i + 1), None, None
     ct.normal = f.normalAt(*f.Surface.parameter(p))
-    surf = _SURF.get(type(f.Surface).__name__, "courbe")
+    surf = tr(_SURF.get(type(f.Surface).__name__, N_("courbe")))
     if isinstance(f.Surface, (Part.Cylinder, Part.Cone)):
         ct.thread_face = ct.face_name
-        ct.desc = "sur %s (%s)" % (ct.face_name, surf)
+        ct.desc = tr("sur %s (%s)") % (ct.face_name, surf)
         return ct
     arcs = []
     for e in f.Edges:
@@ -86,20 +87,20 @@ def contact(base, p):
                 arcs.append(((V(e.Curve.Center) - p).Length, e, g))
     if arcs:                                       # le cercle / l'arc dont le centre est le plus proche du point
         _, ct.arc, ct.thread_face = min(arcs, key=lambda x: x[0])
-        ct.desc = "sur %s (%s, %s Ø %.3f → %s)" % (ct.face_name, surf, "cercle" if _is_full_circle(ct.arc) else "arc",
+        ct.desc = tr("sur %s (%s, %s Ø %.3f → %s)") % (ct.face_name, surf, tr("cercle") if _is_full_circle(ct.arc) else tr("arc"),
                                                    2 * ct.arc.Curve.Radius, ct.thread_face)
     else:
-        ct.desc = "sur %s (%s, aucun cercle ni arc)" % (ct.face_name, surf)
+        ct.desc = tr("sur %s (%s, aucun cercle ni arc)") % (ct.face_name, surf)
     return ct
 
 
 def _point_anchor(points, base, normal, desc):
     """Appui ponctuel : étude de la face de contact du premier point ; axe = normal, sinon normale de la face."""
     ct = contact(base, points[0]) if base is not None else None
-    where = ct.desc if ct else "hors de la pièce"
+    where = ct.desc if ct else tr("hors de la pièce")
     if normal is None:
         normal = ct.normal if ct else V(0, 0, 1)
-        where += "" if ct else ", axe Z"
+        where += "" if ct else tr(", axe Z")
     return Anchor(points, normal, None, "%s — %s" % (desc, where), contact=ct)
 
 
@@ -109,10 +110,10 @@ def _sketch(sk, sub, desc, base=None):
     if sub.startswith("Edge"):
         e = sk.Shape.getElement(sub)
         if not _is_full_circle(e):
-            raise NotThreadable("L'arête choisie de l'esquisse n'est pas un cercle")
-        return Anchor([e.Curve.Center], n, e.Curve.Radius, "cercle Ø %.3f (%s)" % (2 * e.Curve.Radius, desc))
+            raise NotThreadable(tr("L'arête choisie de l'esquisse n'est pas un cercle"))
+        return Anchor([e.Curve.Center], n, e.Curve.Radius, tr("cercle Ø %.3f (%s)") % (2 * e.Curve.Radius, desc))
     if sub.startswith("Vertex"):
-        return _point_anchor([sk.Shape.getElement(sub).Point], base, n, "point (%s)" % desc)
+        return _point_anchor([sk.Shape.getElement(sub).Point], base, n, tr("point (%s)") % desc)
     circles, points, cpoints = [], [], []
     for i, g in enumerate(sk.Geometry):
         if isinstance(g, Part.Point):
@@ -122,23 +123,26 @@ def _sketch(sk, sub, desc, base=None):
     if circles:
         radii = sorted({round(r, 6) for _, r in circles})
         if len(radii) > 1:
-            raise NotThreadable("Cercles de Ø différents dans l'esquisse (%s) : un seul Ø par fonction" %
+            raise NotThreadable(tr("Cercles de Ø différents dans l'esquisse (%s) : un seul Ø par fonction") %
                                 ", ".join("%.3f" % (2 * r) for r in radii))
         k = len(circles)
         return Anchor([c for c, _ in circles], n, circles[0][1],
-                      "%d cercle%s Ø %.3f (%s)" % (k, "s" if k > 1 else "", 2 * circles[0][1], desc))
+                      (tr("%d cercles Ø %.3f (%s)") if k > 1 else tr("%d cercle Ø %.3f (%s)")) % (k, 2 * circles[0][1], desc))
     if points or cpoints:                          # points de construction : seulement s'il n'y a rien d'autre
-        pts, what = (points, "point") if points else (cpoints, "point de construction")
+        pts = points or cpoints
         k = len(pts)
-        return _point_anchor(pts, base, n, "%d %s (%s)" % (k, what.replace("point", "points", 1) if k > 1 else what,
-                                                           desc))
-    raise NotThreadable("L'esquisse ne contient ni cercle ni point")
+        if points:
+            what = tr("%d points (%s)") if k > 1 else tr("%d point (%s)")
+        else:
+            what = tr("%d points de construction (%s)") if k > 1 else tr("%d point de construction (%s)")
+        return _point_anchor(pts, base, n, what % (k, desc))
+    raise NotThreadable(tr("L'esquisse ne contient ni cercle ni point"))
 
 
 def resolve(link, base, picked=None, hint_axis=None):
     """Appui de la fonction. link = (objet, [sous-élément]) ; base = forme de la fonction précédente."""
     if not link:
-        raise NotThreadable("Choisis un appui : esquisse, point, cercle ou face plane")
+        raise NotThreadable(tr("Choisis un appui : esquisse, point, cercle ou face plane"))
     ob, subs = link
     sub = subs[0] if subs else ""
     desc = "%s:%s" % (ob.Label, sub) if sub else ob.Label
@@ -150,30 +154,30 @@ def resolve(link, base, picked=None, hint_axis=None):
         sh = None
     if sh is None or sh.isNull():
         if picked is not None and hint_axis is not None and V(hint_axis).Length > 1e-9:
-            return Anchor([picked], hint_axis, None, "%s (position mémorisée)" % desc)
-        raise NotThreadable("Appui « %s » introuvable : choisis-le à nouveau" % desc)
+            return Anchor([picked], hint_axis, None, tr("%s (position mémorisée)") % desc)
+        raise NotThreadable(tr("Appui « %s » introuvable : choisis-le à nouveau") % desc)
     if sub.startswith("Face"):
         f = sh.Faces[0]
         if not isinstance(f.Surface, Part.Plane):
-            raise NotThreadable("Face non plane : choisis une face plane ou une face cylindrique (filetage existant)")
+            raise NotThreadable(tr("Face non plane : choisis une face plane ou une face cylindrique (filetage existant)"))
         ow = f.OuterWire
         if len(ow.Edges) == 1 and _is_full_circle(ow.Edges[0]):
             c = ow.Edges[0].Curve
             return Anchor([c.Center], f.normalAt(*f.Surface.parameter(c.Center)), c.Radius,
-                          "centre du cercle Ø %.3f (%s)" % (2 * c.Radius, desc))
+                          tr("centre du cercle Ø %.3f (%s)") % (2 * c.Radius, desc))
         p = f.CenterOfMass
         if picked is not None and f.distToShape(Part.Vertex(picked))[0] < 1e-3:
             p = V(picked)
-        return Anchor([p], f.normalAt(*f.Surface.parameter(p)), None, "point de la face (%s)" % desc)
+        return Anchor([p], f.normalAt(*f.Surface.parameter(p)), None, tr("point de la face (%s)") % desc)
     if sub.startswith("Edge"):
         e = sh.Edges[0]
         if not _is_full_circle(e):
-            raise NotThreadable("L'arête choisie n'est pas un cercle complet")
+            raise NotThreadable(tr("L'arête choisie n'est pas un cercle complet"))
         c = e.Curve
-        return Anchor([c.Center], V(c.Axis), c.Radius, "cercle Ø %.3f (%s)" % (2 * c.Radius, desc))
+        return Anchor([c.Center], V(c.Axis), c.Radius, tr("cercle Ø %.3f (%s)") % (2 * c.Radius, desc))
     if sh.Vertexes:                                           # sommet, point de référence : face de contact étudiée
-        return _point_anchor([sh.Vertexes[0].Point], base, None, "point (%s)" % desc)
-    raise NotThreadable("Appui non utilisable : %s" % desc)
+        return _point_anchor([sh.Vertexes[0].Point], base, None, tr("point (%s)") % desc)
+    raise NotThreadable(tr("Appui non utilisable : %s") % desc)
 
 
 class CPlan:
@@ -201,9 +205,9 @@ def thickness(base, c, d):
 def plan(anchor, base, op, r, L, reverse=False):
     """Sens, contrôles « dans le vide » et outils, sans aucun booléen sur la pièce."""
     if r <= 0:
-        raise NotThreadable("Ø nominal nul : choisis une taille")
+        raise NotThreadable(tr("Ø nominal nul : choisis une taille"))
     if L <= 0:
-        raise NotThreadable("Profondeur nulle")
+        raise NotThreadable(tr("Profondeur nulle"))
     n, c0 = anchor.normal, anchor.centers[0]
     hole = op == OPERATIONS[1]
     vp = base.common(_cyl(r, L, c0, n)).Volume
@@ -233,7 +237,7 @@ def plan(anchor, base, op, r, L, reverse=False):
     if hole:
         p.thickness = min(thickness(base, c, d) for c in p.centers)
         if p.thickness < L - 1e-6:
-            p.messages.append("Trou débouchant : %.2f mm de matière pour %.2f mm demandés" % (p.thickness, L))
+            p.messages.append(tr("Trou débouchant : %.2f mm de matière pour %.2f mm demandés") % (p.thickness, L))
     else:
         p.thickness = None
     return p
@@ -245,7 +249,7 @@ def _bore_face(shape, c, d, r):
         if isinstance(s, Part.Cylinder) and abs(s.Radius - r) < 1e-6 and V(s.Axis).cross(d).Length < 1e-6 \
                 and radial(V(s.Center), c, d).Length < 1e-6:
             return "Face%d" % (i + 1)
-    raise NotThreadable("Face du perçage introuvable après l'enlèvement de matière")
+    raise NotThreadable(tr("Face du perçage introuvable après l'enlèvement de matière"))
 
 
 def build(base, p, spec, cfg, clearance, start_offset=0.0, head=None):
@@ -255,9 +259,9 @@ def build(base, p, spec, cfg, clearance, start_offset=0.0, head=None):
     res = base.cut(p.tools) if p.hole else base.fuse(p.tools)
     cuts, adds = (list(p.tools), []) if p.hole else ([], list(p.tools))
     if not res.Solids:
-        raise NotThreadable("Échec du calcul booléen %s" % ("du perçage" if p.hole else "de l'extrusion"))
+        raise NotThreadable(tr("Échec du calcul booléen du perçage") if p.hole else tr("Échec du calcul booléen de l'extrusion"))
     if len(res.Solids) > 1:
-        raise NotThreadable(VOID_PAD if not p.hole else "Le perçage coupe la pièce en %d morceaux" % len(res.Solids))
+        raise NotThreadable(VOID_PAD if not p.hole else tr("Le perçage coupe la pièce en %d morceaux") % len(res.Solids))
     res = res.Solids[0]
     msgs = list(p.messages)
     for c in p.centers:
@@ -266,7 +270,7 @@ def build(base, p, spec, cfg, clearance, start_offset=0.0, head=None):
         t = (entry - info["center"]).dot(info["axis"])
         side = "low" if abs(t - info["t_min"]) < abs(t - info["t_max"]) else "high"
         if start_offset >= p.L - 1e-6:
-            raise NotThreadable("Le décalage du début (%.2f mm) dépasse la profondeur (%.2f mm)" % (start_offset, p.L))
+            raise NotThreadable(tr("Le décalage du début (%.2f mm) dépasse la profondeur (%.2f mm)") % (start_offset, p.L))
         res, bp = builder.build(res, info, spec, cfg, side=side, depth=p.L - start_offset, kind=p.kind,
                                 clearance=clearance, max_length=p.L, start_offset=start_offset)
         msgs += [m for m in bp.messages if m not in msgs]

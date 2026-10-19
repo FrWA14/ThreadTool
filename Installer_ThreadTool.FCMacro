@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 # Installe (ou met à jour) l'extension ThreadTool dans FreeCAD — Windows, Linux et macOS.
+# Installs (or updates) the ThreadTool add-on in FreeCAD — Windows, Linux and macOS.
+# Messages en français si FreeCAD est en français, sinon en anglais.
 #
 # Utilisation : dans FreeCAD, menu Macro → Macros… → « Fichier utilisateur… » ou
 # Fichier → Ouvrir ce fichier, puis bouton « Exécuter la macro » (▶).
@@ -15,6 +17,26 @@ import tempfile
 import FreeCAD as App
 
 NAME = "ThreadTool"
+
+
+def _french():
+    """FreeCAD (ou le système, si FreeCAD suit le système) est-il en français ?"""
+    try:
+        import FreeCADGui
+        return FreeCADGui.supportedLocales().get(FreeCADGui.getLocale(), "").startswith("fr")
+    except Exception:
+        name = App.ParamGet("User parameter:BaseApp/Preferences/General").GetString("Language")
+        if name:
+            return name == "French"
+        import locale
+        return (locale.getlocale()[0] or "").startswith("fr")
+
+
+FR = _french()
+
+
+def T(fr, en):
+    return fr if FR else en
 
 
 def _here():
@@ -44,7 +66,8 @@ def _ask_zip():
     from PySide import QtWidgets
     import FreeCADGui as Gui
     path, _ = QtWidgets.QFileDialog.getOpenFileName(
-        Gui.getMainWindow(), "Archive ThreadTool", _here(), "Archive ThreadTool (*.zip)")
+        Gui.getMainWindow(), T("Archive ThreadTool", "ThreadTool archive"), _here(),
+        T("Archive ThreadTool (*.zip)", "ThreadTool archive (*.zip)"))
     return path or None
 
 
@@ -54,7 +77,7 @@ def _message(text, error=False):
         from PySide import QtWidgets
         import FreeCADGui as Gui
         box = QtWidgets.QMessageBox.critical if error else QtWidgets.QMessageBox.information
-        box(Gui.getMainWindow(), "Installation de ThreadTool", text)
+        box(Gui.getMainWindow(), T("Installation de ThreadTool", "ThreadTool installation"), text)
 
 
 def install(source=None):
@@ -77,12 +100,13 @@ def install(source=None):
                 if src:
                     break
         if src is None:
-            _message("Dossier ou archive ThreadTool introuvable à côté de la macro.", error=True)
+            _message(T("Dossier ou archive ThreadTool introuvable à côté de la macro.",
+                       "ThreadTool folder or archive not found next to the macro."), error=True)
             return False
         mod = os.path.join(App.getUserAppDataDir(), "Mod")
         dest = os.path.join(mod, NAME)
         if os.path.realpath(src) == os.path.realpath(dest):
-            _message("ThreadTool est déjà installé à cet endroit :\n%s" % dest)
+            _message(T("ThreadTool est déjà installé à cet endroit :\n%s", "ThreadTool is already installed here:\n%s") % dest)
             return True
         os.makedirs(mod, exist_ok=True)
         if os.path.islink(dest):
@@ -90,11 +114,13 @@ def install(source=None):
         elif os.path.isdir(dest):
             shutil.rmtree(dest)
         shutil.copytree(src, dest, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".git", "dist"))
-        _message("ThreadTool est installé dans :\n%s\n\nRedémarre FreeCAD, puis ouvre l'atelier Part Design : "
-                 "l'icône « Filetage / taraudage » est à côté de « Perçage »." % dest)
+        _message(T("ThreadTool est installé dans :\n%s\n\nRedémarre FreeCAD, puis ouvre l'atelier Part Design : "
+                   "l'icône « Filetage / taraudage » est à côté de « Perçage ».",
+                   "ThreadTool is installed in:\n%s\n\nRestart FreeCAD, then open the Part Design workbench: "
+                   "the \"Thread / tap\" icon is next to \"Hole\".") % dest)
         return True
     except Exception as e:
-        _message("Échec de l'installation : %s" % e, error=True)
+        _message(T("Échec de l'installation : %s", "Installation failed: %s") % e, error=True)
         return False
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

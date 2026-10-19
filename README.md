@@ -5,6 +5,10 @@ Il suffit de cliquer sur une face cylindrique : l'outil détecte s'il s'agit d'u
 
 Testé avec **FreeCAD 1.1.1** (AppImage Linux) et **FreeCAD 1.1.4** (Windows 11).
 
+L'interface est en **français** quand FreeCAD est en français, en **anglais** pour les autres langues, ou dans toute autre langue dont le fichier de traduction existe (voir [Ajouter une langue](#ajouter-une-langue)).
+
+> **English** — Adds a **Thread / tap** command to Part Design, next to **Hole**. Click a cylindrical face: the tool detects a hole (internal thread) or a shaft (external thread), proposes the closest standard (ISO M, UNC/UNF/UNEF, BSP G, BSW/BSF, NPT, BSPT, Tr or custom), adjusts the diameter and cuts the helix. The interface follows FreeCAD's language: French, English, or any language that has a translation file.
+
 ---
 
 ## Installation (Windows, Linux, macOS)
@@ -125,6 +129,7 @@ Sélectionne l'appui, puis clique sur l'icône. La ligne **Opération** en haut 
 - marge de fin avant le fond d'un perçage borgne ou un épaulement ;
 - préférence métrique / impérial, série préférée, normes proposées ;
 - réglages de la détection (tolérances, polygones pour les maillages, sonde trou / arbre…) ;
+- **Langue de ThreadTool** : « Auto » (langue de FreeCAD, par défaut) ou une langue imposée, prise en compte au prochain démarrage ;
 - bouton **Valeurs d'usine**.
 
 ## Comment ça marche (résumé)
@@ -155,7 +160,7 @@ Le script utilise `C:\Program Files\FreeCAD 1.1\bin` (autre dossier : variable `
 **Linux** (sans interface, ≈ 1 à 3 minutes) :
 ```bash
 cd ThreadTool/tests
-for t in run_tests test_feature test_exercise test_creation test_offset test_heads test_transform; do
+for t in run_tests test_feature test_exercise test_creation test_offset test_heads test_transform test_i18n; do
     <chemin>/FreeCAD_1.1.1-Linux-x86_64-py311.AppImage freecadcmd $t.py
 done
 ```
@@ -163,7 +168,9 @@ done
 
 Pour ne pas toucher à ton profil FreeCAD pendant les tests d'interface, lance-les avec un profil temporaire (variables `FREECAD_USER_HOME` et `FREECAD_USER_DATA`), après y avoir installé ThreadTool avec `FREECAD_MOD_DIR=<profil>\Mod` et `install.ps1`.
 
-## Limites connues (version 0.6)
+`test_i18n.py` vérifie les langues : choix du fichier, fichiers complets, fonction calculée en anglais, document anglais rouvert en français. Les autres tests vérifient des messages en français : ils fixent `THREADTOOL_LANG=fr` eux-mêmes (et `run_tests.ps1` pour les tests d'interface).
+
+## Limites connues (version 0.7)
 
 - Le profil Whitworth (55°) est approché par des méplats au lieu d'arrondis. Les cotes d, d2 et d1 restent respectées.
 - Le mode « crête ajoutée » (`thread_mode = add` du cahier des charges) n'est pas implémenté : le filet est toujours creusé.
@@ -171,3 +178,49 @@ Pour ne pas toucher à ton profil FreeCAD pendant les tests d'interface, lance-l
 - Les booléens sur les hélices prennent quelques secondes sur un petit PC (≈ 2 à 5 s pour un M4 de 10 mm).
 - Les plans de référence pris dans un autre corps ne sont pas gérés : utilise un plan du même corps ou de son Origin.
 - Les têtes de vis sont des formes simplifiées : pas d'arrondi sous tête, pas de collerette, et des empreintes Phillips et Torx approchées. Les cotes principales (Ø ou sur plats, hauteur, taille d'empreinte) suivent les normes citées.
+- Les valeurs des listes déroulantes de la vue Propriétés (Operation, Mode, têtes, empreintes…) sont traduites ; dans une macro, utilise de préférence `threadtool.i18n.enum_put(obj, "Operation", creation.OPERATIONS, "Trou taraudé")`, qui marche quelle que soit la langue.
+- Le changement de langue s'applique au prochain démarrage de FreeCAD (les documents ouverts ensuite sont convertis à l'ouverture).
+
+## Ajouter une langue
+
+Le texte de l'interface est écrit en français dans le code. Chaque autre langue est un fichier JSON du dossier `translations/`, nommé avec le **code de langue de FreeCAD** :
+
+| Langue | Fichier | Langue | Fichier |
+|---|---|---|---|
+| anglais (fourni) | `en.json` | japonais | `ja.json` |
+| allemand | `de.json` | chinois simplifié | `zh-CN.json` |
+| espagnol | `es-ES.json` ou `es.json` | chinois traditionnel | `zh-TW.json` |
+| italien | `it.json` | portugais (Brésil) | `pt-BR.json` ou `pt.json` |
+
+Les autres codes sont ceux de la liste des langues de FreeCAD (`FreeCADGui.supportedLocales()` dans la console Python).
+
+**Au démarrage**, ThreadTool lit la langue de FreeCAD (**Édition → Préférences → Général → Langue**), puis cherche le fichier correspondant : d'abord le code complet (`es-AR.json`), puis la langue seule (`es.json`). Il n'y a rien à déclarer : un nouveau fichier déposé dans `translations/` est reconnu au prochain démarrage. Sans fichier pour la langue, l'interface est en anglais ; en français, ce sont les textes du code. Un texte absent ou vide dans le fichier est affiché en anglais.
+
+### Créer le fichier
+
+1. Dans le dossier `ThreadTool`, lance (Python 3 suffit, FreeCAD n'est pas nécessaire) :
+   ```bash
+   python3 translations/update.py ja
+   ```
+   Le fichier `translations/ja.json` est créé avec tous les textes français et des traductions vides. Sous Windows : `& "C:\Program Files\FreeCAD 1.1\bin\python.exe" translations\update.py ja`.
+2. Ouvre-le dans un éditeur de texte en UTF-8. Mets le nom de la langue dans `"_language"`, puis remplis chaque valeur :
+   ```json
+   "_language": "日本語",
+   "Pas": "ピッチ",
+   "Profondeur ramenée à la longueur disponible (%.2f mm)": "深さを使用可能な長さ (%.2f mm) に調整しました"
+   ```
+   - Ne modifie pas la clé (le texte français à gauche).
+   - Garde les `%s`, `%d`, `%.2f`, `%+.3f`… dans le même ordre, et les `\n` (retours à la ligne).
+   - Pour partir de l'anglais plutôt que du français, copie `en.json` en `ja.json` et remplace les valeurs.
+3. Vérifie le fichier : `python3 translations/update.py --check` (textes manquants, `%…` différents).
+4. Redémarre FreeCAD. La langue est aussi proposée dans **Préférences → Part/Part Design → Filetage → Langue de ThreadTool**, ce qui permet de l'essayer sans changer la langue de FreeCAD.
+
+### Garder sa traduction lors des mises à jour
+
+Le gestionnaire d'extensions remplace le dossier `ThreadTool` à chaque mise à jour. Une traduction personnelle peut être placée dans le dossier de données de FreeCAD, qui n'est jamais remplacé, et qui est prioritaire sur `translations/` :
+- Windows : `C:\Users\<nom>\AppData\Roaming\FreeCAD\v1-1\ThreadTool\translations\ja.json`
+- Linux : `~/.local/share/FreeCAD/v1-1/ThreadTool/translations/ja.json`
+
+(le dossier exact est `App.getUserAppDataDir()` + `ThreadTool/translations`).
+
+Après une mise à jour de ThreadTool, relance `update.py` avec le chemin de ton fichier (`python3 translations/update.py ~/.local/share/FreeCAD/v1-1/ThreadTool/translations/ja.json`) : les nouveaux textes sont ajoutés (vides), les anciens retirés, tes traductions conservées. Pour partager une langue avec tout le monde, propose le fichier sur GitHub (*pull request* dans `translations/`).

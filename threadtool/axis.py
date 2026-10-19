@@ -2,6 +2,7 @@
 import math
 import FreeCAD as App
 import Part
+from .i18n import tr
 
 
 class NotThreadable(Exception):
@@ -38,7 +39,7 @@ def axis_from_face(face):
         return App.Vector(s.Direction), App.Vector(s.Location), None
     if isinstance(s, Part.SurfaceOfExtrusion) and isinstance(s.BasisCurve, Part.Circle):
         return App.Vector(s.Direction), App.Vector(s.BasisCurve.Center), 0.0
-    raise NotThreadable("Face non cylindrique (%s)" % type(s).__name__)
+    raise NotThreadable(tr("Face non cylindrique (%s)") % type(s).__name__)
 
 
 def axis_from_reference(sh):
@@ -59,7 +60,7 @@ def axis_from_reference(sh):
             return App.Vector(k.Axis), App.Vector(k.Center)
     if isinstance(sh, Part.Face) and isinstance(sh.Surface, Part.Plane):
         return App.Vector(sh.Surface.Axis), App.Vector(sh.CenterOfMass)
-    raise NotThreadable("Référence d'axe non reconnue (arête droite, cercle, face plane ou axe)")
+    raise NotThreadable(tr("Référence d'axe non reconnue (arête droite, cercle, face plane ou axe)"))
 
 
 def resolve_axis(face, ref, cfg):
@@ -72,14 +73,14 @@ def resolve_axis(face, ref, cfg):
             raise
     if ref is None:
         if cfg.axis_mode == "user":
-            raise NotThreadable("Mode axe utilisateur : sélectionne un axe de référence")
+            raise NotThreadable(tr("Mode axe utilisateur : sélectionne un axe de référence"))
         return auto[0], auto[1], auto[2], None
     a, c = axis_from_reference(ref)
     warn = None
     if auto is not None:
         ang = math.degrees(a.getAngle(auto[0])); ang = min(ang, 180 - ang)
         if ang > cfg.axis_warn_deg:
-            warn = "L'axe fourni diffère de l'axe de la face de %.2f°" % ang
+            warn = tr("L'axe fourni diffère de l'axe de la face de %.2f°") % ang
             if cfg.axis_conflict == "error":
                 raise NotThreadable(warn)
     return a, c, (auto[2] if auto else None), warn

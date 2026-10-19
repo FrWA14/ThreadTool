@@ -7,19 +7,45 @@ from .axis import NotThreadable, radial
 from .config import ThreadConfig
 from . import detect, builder, thread_data, thread_spec, creation, heads
 from .thread_spec import ThreadSpec
+from .i18n import tr, N_, enum_set_list, enum_get, enum_put
 
 ICON = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                     "Resources", "icons", "ThreadTool.svg")
 STD_ENUM = thread_data.STANDARDS + ["custom"]
-MODE_ENUM = ["Auto", "Taraudage", "Filetage"]
+MODE_ENUM = [N_("Auto"), N_("Taraudage"), N_("Filetage")]
+KINDS = [N_("trou"), N_("arbre")]                     # valeurs de DetectedKind (affichées traduites)
 SIDE_ENUM = ["high", "low"]
 
 
+GROUPS = [N_("Filetage"), N_("Personnalisé"), N_("Référence"), N_("Tête"), N_("Résultat")]
+
+
 def _add(obj, typ, name, group, doc, default=None):
+    """Ajoute la propriété (groupe et bulle d'aide dans la langue de l'utilisateur, mis à jour à l'ouverture)."""
+    group, doc = tr(group), tr(doc)
     if name not in obj.PropertiesList:
         obj.addProperty(typ, name, group, doc)
         if default is not None:
             setattr(obj, name, default)
+        return
+    try:
+        if obj.getGroupOfProperty(name) != group:
+            obj.setGroupOfProperty(name, group)
+        if obj.getDocumentationOfProperty(name) != doc:
+            obj.setDocumentationOfProperty(name, doc)
+    except Exception:
+        pass
+
+
+def op(obj):
+    """Opération de la fonction (valeur française de creation.OPERATIONS)."""
+    if "Operation" not in obj.PropertiesList:
+        return creation.OPERATIONS[0]
+    return enum_get(obj, "Operation", creation.OPERATIONS)
+
+
+def mode(obj):
+    return enum_get(obj, "Mode", MODE_ENUM)
 
 
 class ThreadFeature:
@@ -29,69 +55,60 @@ class ThreadFeature:
 
     def setup(self, obj):
         cfg = ThreadConfig.load()
-        G, C, R = "Filetage", "Personnalisé", "Référence"
+        G, C, R = GROUPS[:3]
         _add(obj, "App::PropertyEnumeration", "Operation", G,
-             "Existant = fileter / tarauder une face cylindrique ; Trou taraudé / Extrusion filetée = créés sur l'appui")
-        cur = obj.getEnumerationsOfProperty("Operation")
-        if cur != creation.OPERATIONS:                       # liste absente ou ancienne (« Tenon fileté »)
-            idx = cur.index(obj.Operation) if cur and obj.Operation in cur else 0
-            obj.Operation = creation.OPERATIONS
-            obj.Operation = creation.OPERATIONS[idx]
-        _add(obj, "App::PropertyLinkSub", "Support", R, "Appui d'un trou / extrusion : esquisse, point, cercle ou face plane")
-        _add(obj, "App::PropertyVector", "SupportPoint", R, "Point cliqué sur la face d'appui (repère du corps)")
-        _add(obj, "App::PropertyBool", "Reversed", R, "Trou / extrusion : inverser le sens automatique", False)
-        _add(obj, "App::PropertyString", "FaceName", R, "Face cylindrique de la fonction précédente (FaceN)")
-        _add(obj, "App::PropertyVector", "HintCenter", R, "Point de l'axe (pour retrouver la face si son nom change)")
-        _add(obj, "App::PropertyVector", "HintAxis", R, "Direction de l'axe (idem)")
-        _add(obj, "App::PropertyFloat", "HintRadius", R, "Rayon de la face (idem)")
-        _add(obj, "App::PropertyEnumeration", "Side", R, "Extrémité de départ : high = côté +axe, low = côté -axe")
+             N_("Existant = fileter / tarauder une face cylindrique ; Trou taraudé / Extrusion filetée = créés sur l'appui"))
+        enum_set_list(obj, "Operation", creation.OPERATIONS)    # liste absente, ancienne (« Tenon fileté ») ou d'une autre langue
+        _add(obj, "App::PropertyLinkSub", "Support", R, N_("Appui d'un trou / extrusion : esquisse, point, cercle ou face plane"))
+        _add(obj, "App::PropertyVector", "SupportPoint", R, N_("Point cliqué sur la face d'appui (repère du corps)"))
+        _add(obj, "App::PropertyBool", "Reversed", R, N_("Trou / extrusion : inverser le sens automatique"), False)
+        _add(obj, "App::PropertyString", "FaceName", R, N_("Face cylindrique de la fonction précédente (FaceN)"))
+        _add(obj, "App::PropertyVector", "HintCenter", R, N_("Point de l'axe (pour retrouver la face si son nom change)"))
+        _add(obj, "App::PropertyVector", "HintAxis", R, N_("Direction de l'axe (idem)"))
+        _add(obj, "App::PropertyFloat", "HintRadius", R, N_("Rayon de la face (idem)"))
+        _add(obj, "App::PropertyEnumeration", "Side", R, N_("Extrémité de départ : high = côté +axe, low = côté -axe"))
         if not obj.getEnumerationsOfProperty("Side"):
             obj.Side = SIDE_ENUM
-        _add(obj, "App::PropertyLinkSub", "HeightReference", R, "Plan ou face plane d'où se mesure la profondeur")
-        _add(obj, "App::PropertyLinkSub", "AxisReference", R, "Axe imposé (facultatif)")
+        _add(obj, "App::PropertyLinkSub", "HeightReference", R, N_("Plan ou face plane d'où se mesure la profondeur"))
+        _add(obj, "App::PropertyLinkSub", "AxisReference", R, N_("Axe imposé (facultatif)"))
         _add(obj, "App::PropertyLength", "StartOffset", R,
-             "Décalage du début du filet depuis la face (ou le plan) de début ; l'entrée est ramenée au Ø de pied", 0.0)
-        _add(obj, "App::PropertyEnumeration", "Standard", G, "Norme (custom = personnalisé)")
+             N_("Décalage du début du filet depuis la face (ou le plan) de début ; l'entrée est ramenée au Ø de pied"), 0.0)
+        _add(obj, "App::PropertyEnumeration", "Standard", G, N_("Norme (custom = personnalisé)"))
         if not obj.getEnumerationsOfProperty("Standard"):
             obj.Standard = STD_ENUM
-        _add(obj, "App::PropertyString", "Designation", G, "Désignation normalisée (M4, 1/4\"-20 UNC, G 1/2…)", "M4")
-        _add(obj, "App::PropertyLength", "Depth", G, "Longueur filetée", cfg.default_depth)
-        _add(obj, "App::PropertyBool", "LeftHanded", G, "Pas à gauche", cfg.default_left_hand)
-        _add(obj, "App::PropertyLength", "PitchOverride", G, "Pas personnalisé pour la norme choisie (0 = pas normalisé)", 0.0)
-        _add(obj, "App::PropertyEnumeration", "Mode", G, "Taraudage / filetage (Auto = détecté)")
-        if not obj.getEnumerationsOfProperty("Mode"):
-            obj.Mode = MODE_ENUM
-        _add(obj, "App::PropertyLength", "Clearance", G, "Jeu sur le diamètre (impression 3D)", cfg.clearance)
-        _add(obj, "App::PropertyLength", "CustomDiameter", C, "Ø nominal ; 0 = garder le Ø de la face", 0.0)
-        _add(obj, "App::PropertyLength", "CustomPitch", C, "Pas", 2.0)
-        _add(obj, "App::PropertyInteger", "CustomStarts", C, "Nombre de filets", 1)
-        _add(obj, "App::PropertyAngle", "CustomFlankA", C, "Demi-angle flanc 1", 30.0)
-        _add(obj, "App::PropertyAngle", "CustomFlankB", C, "Demi-angle flanc 2 (différent = dent de scie)", 30.0)
-        _add(obj, "App::PropertyLength", "CustomDepth", C, "Profondeur du filet ; 0 = auto", 0.0)
-        _add(obj, "App::PropertyLength", "CustomCrest", C, "Méplat de sommet ; 0 = auto", 0.0)
-        _add(obj, "App::PropertyBool", "CustomTaper", C, "Conique 1:16", False)
-        H = "Tête"
-        _add(obj, "App::PropertyEnumeration", "HoleHead", H, "Taraudage : lamage / fraisage pour noyer la tête de vis")
-        if not obj.getEnumerationsOfProperty("HoleHead"):
-            obj.HoleHead = heads.HOLE_HEADS
-        _add(obj, "App::PropertyEnumeration", "ScrewHead", H, "Filetage : tête de vis ajoutée à une extrémité")
-        if not obj.getEnumerationsOfProperty("ScrewHead"):
-            obj.ScrewHead = heads.SCREW_HEAD_NAMES
-        _add(obj, "App::PropertyEnumeration", "HeadPosition", H, "Filetage : extrémité qui reçoit la tête")
-        if not obj.getEnumerationsOfProperty("HeadPosition"):
-            obj.HeadPosition = heads.POSITIONS
-        _add(obj, "App::PropertyEnumeration", "Drive", H, "Empreinte creusée au centre de la tête de vis")
-        if not obj.getEnumerationsOfProperty("Drive"):
-            obj.Drive = heads.DRIVES
-        _add(obj, "App::PropertyBool", "HeadCustom", H, "Cotes de tête personnalisées (sinon celles de la norme)", False)
-        _add(obj, "App::PropertyLength", "HeadDiameter", H, "Ø du lamage / fraisage, ou Ø (sur plats) de la tête", 0.0)
-        _add(obj, "App::PropertyLength", "HeadHeight", H, "Profondeur du lamage, ou hauteur de la tête", 0.0)
-        _add(obj, "App::PropertyAngle", "HeadAngle", H, "Angle du fraisage", 90.0)
-        _add(obj, "App::PropertyLength", "DriveSize", H, "Taille de l'empreinte (sur plats, largeur, Ø)", 0.0)
-        _add(obj, "App::PropertyLength", "DriveDepth", H, "Profondeur de l'empreinte", 0.0)
-        _add(obj, "App::PropertyString", "DetectedKind", "Résultat", "Type détecté")
-        _add(obj, "App::PropertyLength", "DetectedDiameter", "Résultat", "Ø mesuré de la face")
-        _add(obj, "App::PropertyString", "Messages", "Résultat", "Avertissements du dernier calcul")
+        _add(obj, "App::PropertyString", "Designation", G, N_("Désignation normalisée (M4, 1/4\"-20 UNC, G 1/2…)"), "M4")
+        _add(obj, "App::PropertyLength", "Depth", G, N_("Longueur filetée"), cfg.default_depth)
+        _add(obj, "App::PropertyBool", "LeftHanded", G, N_("Pas à gauche"), cfg.default_left_hand)
+        _add(obj, "App::PropertyLength", "PitchOverride", G, N_("Pas personnalisé pour la norme choisie (0 = pas normalisé)"), 0.0)
+        _add(obj, "App::PropertyEnumeration", "Mode", G, N_("Taraudage / filetage (Auto = détecté)"))
+        enum_set_list(obj, "Mode", MODE_ENUM)
+        _add(obj, "App::PropertyLength", "Clearance", G, N_("Jeu sur le diamètre (impression 3D)"), cfg.clearance)
+        _add(obj, "App::PropertyLength", "CustomDiameter", C, N_("Ø nominal ; 0 = garder le Ø de la face"), 0.0)
+        _add(obj, "App::PropertyLength", "CustomPitch", C, N_("Pas"), 2.0)
+        _add(obj, "App::PropertyInteger", "CustomStarts", C, N_("Nombre de filets"), 1)
+        _add(obj, "App::PropertyAngle", "CustomFlankA", C, N_("Demi-angle flanc 1"), 30.0)
+        _add(obj, "App::PropertyAngle", "CustomFlankB", C, N_("Demi-angle flanc 2 (différent = dent de scie)"), 30.0)
+        _add(obj, "App::PropertyLength", "CustomDepth", C, N_("Profondeur du filet ; 0 = auto"), 0.0)
+        _add(obj, "App::PropertyLength", "CustomCrest", C, N_("Méplat de sommet ; 0 = auto"), 0.0)
+        _add(obj, "App::PropertyBool", "CustomTaper", C, N_("Conique 1:16"), False)
+        H, X = GROUPS[3:]
+        _add(obj, "App::PropertyEnumeration", "HoleHead", H, N_("Taraudage : lamage / fraisage pour noyer la tête de vis"))
+        enum_set_list(obj, "HoleHead", heads.HOLE_HEADS)
+        _add(obj, "App::PropertyEnumeration", "ScrewHead", H, N_("Filetage : tête de vis ajoutée à une extrémité"))
+        enum_set_list(obj, "ScrewHead", heads.SCREW_HEAD_NAMES)
+        _add(obj, "App::PropertyEnumeration", "HeadPosition", H, N_("Filetage : extrémité qui reçoit la tête"))
+        enum_set_list(obj, "HeadPosition", heads.POSITIONS)
+        _add(obj, "App::PropertyEnumeration", "Drive", H, N_("Empreinte creusée au centre de la tête de vis"))
+        enum_set_list(obj, "Drive", heads.DRIVES)
+        _add(obj, "App::PropertyBool", "HeadCustom", H, N_("Cotes de tête personnalisées (sinon celles de la norme)"), False)
+        _add(obj, "App::PropertyLength", "HeadDiameter", H, N_("Ø du lamage / fraisage, ou Ø (sur plats) de la tête"), 0.0)
+        _add(obj, "App::PropertyLength", "HeadHeight", H, N_("Profondeur du lamage, ou hauteur de la tête"), 0.0)
+        _add(obj, "App::PropertyAngle", "HeadAngle", H, N_("Angle du fraisage"), 90.0)
+        _add(obj, "App::PropertyLength", "DriveSize", H, N_("Taille de l'empreinte (sur plats, largeur, Ø)"), 0.0)
+        _add(obj, "App::PropertyLength", "DriveDepth", H, N_("Profondeur de l'empreinte"), 0.0)
+        _add(obj, "App::PropertyString", "DetectedKind", X, N_("Type détecté"))
+        _add(obj, "App::PropertyLength", "DetectedDiameter", X, N_("Ø mesuré de la face"))
+        _add(obj, "App::PropertyString", "Messages", X, N_("Avertissements du dernier calcul"))
         for p in ("DetectedKind", "DetectedDiameter", "Messages", "HintCenter", "HintAxis", "HintRadius"):
             obj.setEditorMode(p, 1)
 
@@ -110,7 +127,7 @@ class ThreadFeature:
     def execute(self, obj):
         base = obj.BaseFeature
         if base is None or base.Shape.isNull():
-            raise NotThreadable("Aucune fonction précédente dans le corps")
+            raise NotThreadable(tr("Aucune fonction précédente dans le corps"))
         shape = base.Shape.copy()
         cfg = ThreadConfig.load()
         if creating(obj):
@@ -121,10 +138,10 @@ class ThreadFeature:
                 off = max(off, h["depth"])                    # le filet commence sous le lamage
             res, msgs, cuts, adds = creation.build(shape, cc["plan"], cc["spec"], cfg, obj.Clearance.Value, off, head=h)
             if h and h.get("type") == "lamage":
-                msgs = [m for m in msgs if not m.startswith("Entrée de")]
+                msgs = [m for m in msgs if not builder.is_entry_msg(m)]
             msgs += [hmsg] if hmsg else []
             msgs += set_addsub(obj, shape, res, cuts, adds)
-            obj.DetectedKind = cc["plan"].kind
+            obj.DetectedKind = tr(cc["plan"].kind)
             obj.DetectedDiameter = 2 * cc["plan"].r
             obj.Messages = " ; ".join(msgs)
             obj.Shape = res
@@ -136,7 +153,7 @@ class ThreadFeature:
         if h and h.get("type") == "lamage" and kw["ref_t"] is None:
             kw["start_offset"] = max(kw["start_offset"], h["depth"])   # le filet commence sous le lamage
         res, plan = builder.build(shape, info, spec, cfg, **kw)
-        msgs = [m for m in plan.messages if not (h and h.get("type") == "lamage" and m.startswith("Entrée de"))]
+        msgs = [m for m in plan.messages if not (h and h.get("type") == "lamage" and builder.is_entry_msg(m))]
         msgs += [hmsg] if hmsg else []
         cuts = list(plan.cut_tools)
         adds = [plan.add_tool] if plan.add_tool is not None else []
@@ -146,7 +163,7 @@ class ThreadFeature:
             (cuts if kind == "trou" else adds).append(tool)
             msgs += [m] if m else []
         msgs += set_addsub(obj, shape, res, cuts, adds)
-        obj.DetectedKind = info["kind"]
+        obj.DetectedKind = tr(info["kind"])
         obj.DetectedDiameter = info["diameter"]
         obj.Messages = " ; ".join(msgs)
         obj.Shape = res
@@ -174,7 +191,7 @@ def find_face(obj, shape, cfg):
             obj.FaceName = pf[0]
             face = shape.getElement(pf[0])
     if face is None:
-        raise NotThreadable("Face « %s » introuvable : choisis à nouveau la face" % obj.FaceName)
+        raise NotThreadable(tr("Face « %s » introuvable : choisis à nouveau la face") % obj.FaceName)
     return face
 
 
@@ -186,7 +203,7 @@ def point_face(obj, shape):
         return None
     ct = a.contact
     if ct is None:
-        raise NotThreadable(creation.NO_ARC + " : le point ne touche aucune face de la pièce")
+        raise NotThreadable(creation.NO_ARC + tr(" : le point ne touche aucune face de la pièce"))
     if not ct.thread_face:
         raise NotThreadable("%s (%s)" % (creation.NO_ARC, ct.face_name))
     return ct.thread_face, a.centers[0]
@@ -235,7 +252,7 @@ def _plane_of(link):
     sh = o.Shape.getElement(subs[0]) if subs and subs[0] else Part.getShape(o)
     faces = sh.Faces
     if not faces or not isinstance(faces[0].Surface, Part.Plane):
-        raise NotThreadable("La référence de hauteur doit être un plan ou une face plane")
+        raise NotThreadable(tr("La référence de hauteur doit être un plan ou une face plane"))
     f = faces[0]
     return App.Vector(f.Surface.Axis), App.Vector(f.CenterOfMass if f.Area < 1e12 else f.Surface.Position)
 
@@ -246,7 +263,7 @@ def spec_of(obj):
             spec = thread_spec.from_entry(thread_data.get(obj.Designation),
                                           getattr(obj, "PitchOverride", 0) and obj.PitchOverride.Value)
         except KeyError:
-            raise NotThreadable("Désignation inconnue : %s" % obj.Designation)
+            raise NotThreadable(tr("Désignation inconnue : %s") % obj.Designation)
         spec.left_hand = obj.LeftHanded
         return spec
     return ThreadSpec(d=obj.CustomDiameter.Value, pitch=obj.CustomPitch.Value, starts=max(1, obj.CustomStarts),
@@ -256,7 +273,10 @@ def spec_of(obj):
 
 def head_of(obj, spec, kind, write=True):
     """(tête demandée ou None, message). Hors norme : pas de tête, avec le message d'activation."""
-    asked = (getattr(obj, "HoleHead", heads.NONE) if kind == "trou" else getattr(obj, "ScrewHead", heads.NONE))
+    if kind == "trou":
+        asked = enum_get(obj, "HoleHead", heads.HOLE_HEADS) if hasattr(obj, "HoleHead") else heads.NONE
+    else:
+        asked = enum_get(obj, "ScrewHead", heads.SCREW_HEAD_NAMES) if hasattr(obj, "ScrewHead") else heads.NONE
     if asked == heads.NONE:
         return None, ""
     if spec.is_custom:
@@ -264,7 +284,7 @@ def head_of(obj, spec, kind, write=True):
     h = heads.params(obj, spec.d, kind, write)
     errs = heads.check(h, spec.d, kind)
     if errs:
-        raise NotThreadable("Tête : " + " ; ".join(errs))
+        raise NotThreadable(tr("Tête : ") + " ; ".join(errs))
     return h, ""
 
 
@@ -282,14 +302,14 @@ def head_frame(plan, info, h):
 
 SUB_TYPE = "PartDesign::FeatureSubtractivePython"
 ADD_TYPE = "PartDesign::FeatureAdditivePython"
-WARN_SUB = ("Symétrie / répétition : seule la matière enlevée sera reproduite (cette fonction ajoute aussi "
-            "de la matière : rebouchage du trou, ajustement du Ø ou tête de vis)")
-WARN_ADD = "Symétrie / répétition : seule la matière ajoutée sera reproduite (cette fonction enlève aussi de la matière)"
+WARN_SUB = tr("Symétrie / répétition : seule la matière enlevée sera reproduite (cette fonction ajoute aussi "
+              "de la matière : rebouchage du trou, ajustement du Ø ou tête de vis)")
+WARN_ADD = tr("Symétrie / répétition : seule la matière ajoutée sera reproduite (cette fonction enlève aussi de la matière)")
 
 
 def wanted_type(obj):
     """Une extrusion filetée ajoute de la matière ; tout le reste en enlève (comme Poche / Perçage)."""
-    return ADD_TYPE if getattr(obj, "Operation", "") == creation.OPERATIONS[2] else SUB_TYPE
+    return ADD_TYPE if op(obj) == creation.OPERATIONS[2] else SUB_TYPE
 
 
 def set_addsub(obj, base, res, cuts, adds):
@@ -322,8 +342,8 @@ def set_addsub(obj, base, res, cuts, adds):
 
 # propriétés recopiées quand la fonction change de type (additive <-> soustractive)
 def _own_props(obj):
-    return [p for p in obj.PropertiesList if obj.getGroupOfProperty(p) in
-            ("Filetage", "Personnalisé", "Référence", "Tête", "Résultat")]
+    groups = set(GROUPS) | {tr(g) for g in GROUPS}
+    return [p for p in obj.PropertiesList if obj.getGroupOfProperty(p) in groups]
 
 
 def ensure_type(obj):
@@ -358,7 +378,7 @@ def ensure_type(obj):
 
 
 def creating(obj):
-    return getattr(obj, "Operation", "Existant") in creation.OPERATIONS[1:]
+    return op(obj) in creation.OPERATIONS[1:]
 
 
 def creation_context(obj, shape, cfg):
@@ -369,10 +389,10 @@ def creation_context(obj, shape, cfg):
     r = spec.d / 2 if spec.d > 0 else (anchor.radius or 0.0)
     if spec.d <= 0:
         spec.d = 2 * r
-    if obj.Operation == creation.OPERATIONS[1] and r > 0:
+    if op(obj) == creation.OPERATIONS[1] and r > 0:
         # perçage directement au Ø d'alésage du taraudage : la fonction ne fait qu'enlever de la matière
         r = thread_spec.groove(spec, "trou", r, obj.Clearance.Value)["r_open"]
-    plan = creation.plan(anchor, shape, obj.Operation, r, obj.Depth.Value, obj.Reversed)
+    plan = creation.plan(anchor, shape, op(obj), r, obj.Depth.Value, obj.Reversed)
     return dict(anchor=anchor, spec=spec, plan=plan)
 
 
@@ -387,9 +407,9 @@ def context(obj, shape, cfg):
         n, p0 = _plane_of(obj.HeightReference)
         a, c = info["axis"], info["center"]
         if abs(a.dot(n)) < 1e-6:
-            raise NotThreadable("Le plan de référence est parallèle à l'axe")
+            raise NotThreadable(tr("Le plan de référence est parallèle à l'axe"))
         ref_t = (p0 - c).dot(n) / a.dot(n)
-    kind = {"Taraudage": "trou", "Filetage": "arbre"}.get(obj.Mode)
+    kind = {"Taraudage": "trou", "Filetage": "arbre"}.get(mode(obj))
     src = source_feature(obj, info)
     kw = dict(side=side, ref_t=ref_t, depth=obj.Depth.Value, kind=kind, clearance=obj.Clearance.Value,
               max_length=src["length"] if src else None, start_offset=obj.StartOffset.Value)
@@ -490,8 +510,8 @@ def create(body, name="Thread", operation=None):
     obj = body.newObject(typ, name)
     ThreadFeature(obj)
     if operation:
-        obj.Operation = operation
+        enum_put(obj, "Operation", creation.OPERATIONS, operation)
     if App.GuiUp:
         ViewProviderThread(obj.ViewObject)
-    obj.Label = "Filetage"
+    obj.Label = tr("Filetage")
     return obj

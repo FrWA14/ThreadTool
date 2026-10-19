@@ -4,11 +4,12 @@ import math
 import dataclasses
 
 from . import thread_data
+from .i18n import tr
 
 
 @dataclasses.dataclass
 class ThreadSpec:
-    name: str = "Personnalisé"
+    name: str = tr("Personnalisé")
     standard: str = "custom"        # "ISO" | "UNC" | ... | "Tr" | "custom"
     d: float = 0.0                  # mm, Ø nominal ; 0 = garder le Ø de la face (personnalisé)
     pitch: float = 2.0              # mm entre deux filets voisins
@@ -105,15 +106,15 @@ def check(spec, g):
     """Contrôles de cohérence ; retourne une liste de messages d'erreur."""
     errs = []
     if spec.pitch <= 0:
-        errs.append("Le pas doit être positif")
+        errs.append(tr("Le pas doit être positif"))
     bottom = g["width"] - g["depth"] * (math.tan(math.radians(g["flank_a"])) + math.tan(math.radians(g["flank_b"])))
     if bottom < -1e-6:
-        errs.append("Profil impossible : pas trop petit pour cette profondeur et ces angles "
-                    "(réduire la profondeur ou les angles, ou augmenter le pas)")
+        errs.append(tr("Profil impossible : pas trop petit pour cette profondeur et ces angles "
+                    "(réduire la profondeur ou les angles, ou augmenter le pas)"))
     if g["width"] >= spec.pitch:
-        errs.append("Le sillon est plus large que le pas")
+        errs.append(tr("Le sillon est plus large que le pas"))
     if g["depth"] <= 0:
-        errs.append("La profondeur doit être positive")
+        errs.append(tr("La profondeur doit être positive"))
     return errs
 
 

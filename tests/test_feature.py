@@ -2,6 +2,7 @@
 import os, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else os.getcwd()
 sys.path.insert(0, os.path.dirname(HERE))
+os.environ.setdefault("THREADTOOL_LANG", "fr")         # les messages vérifiés sont en français
 import FreeCAD as App
 import Part
 from threadtool import feature, detect, standards

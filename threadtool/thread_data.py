@@ -2,6 +2,8 @@
 import math
 from collections import namedtuple
 
+from .i18n import tr
+
 IN = 25.4
 TAPER_1_16 = 1.0 / 16.0            # conicité sur le diamètre
 
@@ -12,31 +14,31 @@ Entry = namedtuple("Entry", "standard name d P series profile taper extra")
 
 STANDARDS = ["ISO", "UNC", "UNF", "UNEF", "G", "BSW", "BSF", "NPT", "BSPT", "Tr"]
 STANDARD_LABELS = {
-    "ISO": "ISO métrique (M)",
-    "UNC": "UNC – unifié gros (impérial)",
-    "UNF": "UNF – unifié fin (impérial)",
-    "UNEF": "UNEF – unifié extra-fin (impérial)",
-    "G": "BSP G – gaz cylindrique (55°)",
-    "BSW": "BSW – Whitworth gros (55°)",
-    "BSF": "BSF – Whitworth fin (55°)",
-    "NPT": "NPT – conique américain 1:16",
-    "BSPT": "BSPT R/Rc – conique 1:16 (55°)",
-    "Tr": "Tr – trapézoïdal 30°",
+    "ISO": tr("ISO métrique (M)"),
+    "UNC": tr("UNC – unifié gros (impérial)"),
+    "UNF": tr("UNF – unifié fin (impérial)"),
+    "UNEF": tr("UNEF – unifié extra-fin (impérial)"),
+    "G": tr("BSP G – gaz cylindrique (55°)"),
+    "BSW": tr("BSW – Whitworth gros (55°)"),
+    "BSF": tr("BSF – Whitworth fin (55°)"),
+    "NPT": tr("NPT – conique américain 1:16"),
+    "BSPT": tr("BSPT R/Rc – conique 1:16 (55°)"),
+    "Tr": tr("Tr – trapézoïdal 30°"),
 }
 # choix proposés dans « Norme / format » : (clé, libellé, norme, série ou None)
 CHOICES = [
-    ("ISO|coarse", "ISO métrique – pas gros (normal)", "ISO", "coarse"),
-    ("ISO|fine", "ISO métrique – pas fin", "ISO", "fine"),
-    ("ISO|extra-fine", "ISO métrique – pas extra-fin", "ISO", "extra-fine"),
-    ("UNC", "UNC – unifié gros (impérial)", "UNC", None),
-    ("UNF", "UNF – unifié fin (impérial)", "UNF", None),
-    ("UNEF", "UNEF – unifié extra-fin (impérial)", "UNEF", None),
-    ("G", "BSP G – gaz cylindrique (55°)", "G", None),
-    ("BSW", "BSW – Whitworth gros (55°)", "BSW", None),
-    ("BSF", "BSF – Whitworth fin (55°)", "BSF", None),
-    ("NPT", "NPT – conique américain 1:16", "NPT", None),
-    ("BSPT", "BSPT R/Rc – conique 1:16 (55°)", "BSPT", None),
-    ("Tr", "Tr – trapézoïdal 30°", "Tr", None),
+    ("ISO|coarse", tr("ISO métrique – pas gros (normal)"), "ISO", "coarse"),
+    ("ISO|fine", tr("ISO métrique – pas fin"), "ISO", "fine"),
+    ("ISO|extra-fine", tr("ISO métrique – pas extra-fin"), "ISO", "extra-fine"),
+    ("UNC", tr("UNC – unifié gros (impérial)"), "UNC", None),
+    ("UNF", tr("UNF – unifié fin (impérial)"), "UNF", None),
+    ("UNEF", tr("UNEF – unifié extra-fin (impérial)"), "UNEF", None),
+    ("G", tr("BSP G – gaz cylindrique (55°)"), "G", None),
+    ("BSW", tr("BSW – Whitworth gros (55°)"), "BSW", None),
+    ("BSF", tr("BSF – Whitworth fin (55°)"), "BSF", None),
+    ("NPT", tr("NPT – conique américain 1:16"), "NPT", None),
+    ("BSPT", tr("BSPT R/Rc – conique 1:16 (55°)"), "BSPT", None),
+    ("Tr", tr("Tr – trapézoïdal 30°"), "Tr", None),
 ]
 
 
@@ -207,8 +209,8 @@ def describe(e):
     s = "Ø %s × P %s" % (_g(m["d"]), _g(m["P"]))
     if "tpi" in e.extra:
         s += " (%s TPI)" % _g(e.extra["tpi"])
-    s += " — d2 %s, noyau vis %s, D1 écrou %s, perçage %s" % (
+    s += tr(" — d2 %s, noyau vis %s, D1 écrou %s, perçage %s") % (
         _g(m["d2"]), _g(m["minor_ext"]), _g(m["minor_int"]), _g(m["drill"]))
     if e.taper:
-        s += " — conique 1:16"
+        s += tr(" — conique 1:16")
     return s
