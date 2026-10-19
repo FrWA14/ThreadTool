@@ -109,7 +109,10 @@ class ThreadFeature:
         _add(obj, "App::PropertyString", "DetectedKind", X, N_("Type détecté"))
         _add(obj, "App::PropertyLength", "DetectedDiameter", X, N_("Ø mesuré de la face"))
         _add(obj, "App::PropertyString", "Messages", X, N_("Avertissements du dernier calcul"))
-        for p in ("DetectedKind", "DetectedDiameter", "Messages", "HintCenter", "HintAxis", "HintRadius"):
+        _add(obj, "App::PropertyString", "Material", X,
+             N_("Matière au dernier calcul : add = ajout seul, sub = enlèvement seul, both = les deux "
+                "(choisit le type pour la Symétrie / les Répétitions)"))
+        for p in ("DetectedKind", "DetectedDiameter", "Messages", "HintCenter", "HintAxis", "HintRadius", "Material"):
             obj.setEditorMode(p, 1)
 
     def onDocumentRestored(self, obj):
@@ -315,8 +318,30 @@ WARN_ADD = tr("Symétrie / répétition : seule la matière ajoutée sera reprod
 
 
 def wanted_type(obj):
-    """Une extrusion filetée ajoute de la matière ; tout le reste en enlève (comme Poche / Perçage)."""
+    """Type pour la Symétrie / les Répétitions, d'après ce que la fonction fait réellement au dernier calcul
+    (propriété Material) : seulement ajouter -> additive, seulement enlever -> soustractive. Sinon (les deux,
+    ou pas encore calculée) : une extrusion filetée ajoute, tout le reste enlève (comme Poche / Perçage).
+    Exemple : filet 5/8"-24 sur un arbre Ø13,5 -> manchon ajouté puis fileté, rien d'enlevé -> additive."""
+    m = getattr(obj, "Material", "")
+    if m == "add":
+        return ADD_TYPE
+    if m == "sub":
+        return SUB_TYPE
     return ADD_TYPE if op(obj) == creation.OPERATIONS[2] else SUB_TYPE
+
+
+def material_of(base, res):
+    """« add » si la fonction ne fait qu'ajouter, « sub » si elle ne fait qu'enlever, « both » sinon."""
+    try:
+        added = res.cut(base).Volume
+        lost = base.cut(res).Volume
+    except Exception:
+        return "both"
+    if added > 1e-3 and lost <= 1e-3:
+        return "add"
+    if lost > 1e-3 and added <= 1e-3:
+        return "sub"
+    return "both"
 
 
 def set_addsub(obj, base, res, cuts, adds):
@@ -324,8 +349,14 @@ def set_addsub(obj, base, res, cuts, adds):
 
     Ces outils ne savent qu'ajouter OU enlever : un outil unique est donc fourni, avec un avertissement
     si la fonction fait aussi l'opération inverse. Retourne la liste des avertissements."""
+    if "Material" in obj.PropertiesList:
+        obj.Material = material_of(base, res)
     if "AddSubShape" not in obj.PropertiesList:
         return []
+    if obj.TypeId != wanted_type(obj):                # type à changer : fait à la validation du panneau
+        msg = [tr("Symétrie / répétition : ouvre la fonction et valide (OK) pour la mettre à jour")]
+    else:
+        msg = []
     if obj.TypeId == ADD_TYPE:
         try:
             added = res.cut(base)
@@ -336,7 +367,7 @@ def set_addsub(obj, base, res, cuts, adds):
             lost = base.cut(res).Volume
         except Exception:
             lost = 0.0
-        return [WARN_ADD] if lost > 1e-3 else []
+        return msg + ([WARN_ADD] if lost > 1e-3 else [])
     obj.AddSubShape = Part.Compound([c for c in cuts if c is not None])
     added = 0.0
     for a in adds:
@@ -344,7 +375,7 @@ def set_addsub(obj, base, res, cuts, adds):
             added += a.common(res).Volume - a.common(base).Volume
         except Exception:
             added += a.Volume
-    return [WARN_SUB] if added > 1e-3 else []
+    return msg + ([WARN_SUB] if added > 1e-3 else [])
 
 
 # propriétés recopiées quand la fonction change de type (additive <-> soustractive)
@@ -372,6 +403,7 @@ def ensure_type(obj):
             setattr(new, p, getattr(obj, p))
         except Exception:
             pass
+    _relink(obj, new, body)
     label = obj.Label
     was_tip = body.Tip == obj
     if App.GuiUp:
@@ -382,6 +414,35 @@ def ensure_type(obj):
         body.Tip = new
     new.Label = label
     return new
+
+
+def _relink(old, new, body):
+    """Reporte sur la nouvelle fonction les liens vers l'ancienne (Originals d'une Symétrie / Répétition…)."""
+    def swap(v):
+        if v is old:
+            return new, True
+        if isinstance(v, tuple) and v and v[0] is old:
+            return (new,) + tuple(v[1:]), True
+        if isinstance(v, list):
+            out, hit = [], False
+            for x in v:
+                y, h = swap(x)
+                out.append(y)
+                hit = hit or h
+            return out, hit
+        return v, False
+    for o in list(old.InList):
+        if o is body or o is new:
+            continue
+        for prop in o.PropertiesList:
+            if prop in ("Group", "Tip", "BaseFeature") or "Link" not in o.getTypeIdOfProperty(prop):
+                continue
+            try:
+                v, hit = swap(getattr(o, prop))
+                if hit:
+                    setattr(o, prop, v)
+            except Exception:
+                pass
 
 
 def creating(obj):

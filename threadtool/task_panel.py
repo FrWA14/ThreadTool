@@ -1256,10 +1256,15 @@ class ThreadTaskPanel:
             return False
         QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
         try:
-            # bon type pour la Symétrie / les Répétitions (additive ou soustractive) : recréée si besoin
-            self.obj = feature.ensure_type(self.obj)
             self.obj.touch()
             self.doc.recompute()
+            # bon type pour la Symétrie / les Répétitions (additive ou soustractive), d'après la matière
+            # réellement ajoutée / enlevée par ce calcul : la fonction est recréée à sa place si besoin
+            new = feature.ensure_type(self.obj)
+            if new is not self.obj:
+                self.obj = new
+                self.obj.touch()
+                self.doc.recompute()
         finally:
             QtWidgets.QApplication.restoreOverrideCursor()
         if not self.obj.isValid():

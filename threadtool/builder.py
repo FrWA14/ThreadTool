@@ -365,7 +365,7 @@ def build(shape, info, spec, cfg, **kw):
         raise NotThreadable(tr("Le filet coupe la pièce en %d morceaux (paroi trop fine ?)") % len(res.Solids))
     if before - res.Volume < 1e-6:
         raise NotThreadable(tr("Le sillon n'a rien enlevé (échec du booléen ?)"))
-    _wall_warning(shape, info, p, cfg)
+    _wall_warning(res.Solids[0], info, p, cfg)                # pièce finale (avec la matière ajoutée)
     return res.Solids[0], p
 
 

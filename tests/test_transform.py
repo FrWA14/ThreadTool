@@ -231,4 +231,63 @@ check(new.TypeId == feature.SUB_TYPE and new.BaseFeature == rev and nxt.BaseFeat
       "migration en milieu d'arbre : %s, base %s, suivant -> %s" % (new.TypeId, new.BaseFeature.Name, nxt.BaseFeature.Name))
 check(new.isValid() and nxt.isValid() and abs(nxt.Shape.Volume - v0) < 1e-6, "résultat identique après migration")
 
+# ---------------------------------------------------------------- 7. filet plus gros que l'arbre : fonction additive
+# Cas de l'utilisateur : révolution autour de Z, Ø13,5 (z 0-10) / Ø15,7 (z 10-15) / Ø13,5 (z 15-25) ;
+# 5/8"-24 UNEF (Ø15,875) sur le Ø13,5 du haut : manchon ajouté puis fileté, rien n'est enlevé.
+doc = App.newDocument("Gros")
+body = doc.addObject("PartDesign::Body", "Body")
+sk = body.newObject("Sketcher::SketchObject", "Profil")
+sk.AttachmentSupport, sk.MapMode = [(origin(body, "XZ_Plane"), "")], "FlatFace"
+pts = [V(0, 0, 0), V(6.75, 0, 0), V(6.75, 10, 0), V(7.85, 10, 0), V(7.85, 15, 0), V(6.75, 15, 0), V(6.75, 25, 0), V(0, 25, 0)]
+for p1, p2 in zip(pts, pts[1:] + pts[:1]):
+    sk.addGeometry(Part.LineSegment(p1, p2))
+rev = body.newObject("PartDesign::Revolution", "Revolution")
+rev.Profile, rev.ReferenceAxis, rev.Angle = sk, (sk, ["V_Axis"]), 360
+doc.recompute()
+f = [("Face%d" % (i + 1)) for i, x in enumerate(rev.Shape.Faces)
+     if isinstance(x.Surface, Part.Cylinder) and abs(x.Surface.Radius - 6.75) < 1e-6 and x.CenterOfMass.z > 15][0]
+t = feature.create(body, "Gros")
+t.FaceName, t.Standard, t.Designation, t.Depth = f, "UNEF", '5/8"-24 UNEF', 8
+doc.recompute()
+pp = body.newObject("PartDesign::PolarPattern", "Rotation")      # déjà répétée avant le changement de type
+ax = body.newObject("PartDesign::Line", "AxeMilieu")
+ax.MapMode, ax.Placement = "Deactivated", App.Placement(V(0, 0, 12.5), App.Rotation(V(0, 1, 0), 90))
+pp.Originals, pp.Axis, pp.Angle, pp.Occurrences, pp.Refine = [t], (ax, [""]), 360, 2, False
+body.Tip = t
+doc.recompute()
+check(t.Material == "add" and feature.wanted_type(t) == feature.ADD_TYPE,
+      "5/8\"-24 sur Ø13,5 : ajout seul (%s) -> additive" % t.Material)
+t = feature.ensure_type(t)                                      # ce que fait OK dans le panneau
+doc.recompute()
+added = t.Shape.Volume - rev.Shape.Volume
+check(t.TypeId == feature.ADD_TYPE and t.isValid() and feature.WARN_SUB not in t.Messages,
+      "fonction recréée additive, sans avertissement (%s)" % t.Messages)
+check(pp.Originals == [t], "lien de la répétition reporté sur la nouvelle fonction")
+
+
+def rmax(shape, z):
+    return max(math.hypot(q.x, q.y) for w in shape.slice(V(0, 0, 1), z) for e in w.Edges for q in e.discretize(Number=90))
+
+
+mid = body.newObject("PartDesign::Plane", "PlanMilieu")
+mid.MapMode, mid.Placement = "Deactivated", App.Placement(V(0, 0, 12.5), App.Rotation())
+cases = [("symétrie par le plan du milieu", "Mirrored", dict(MirrorPlane=(mid, [""]))),
+         ("translation de 15 mm suivant -Z", "LinearPattern",
+          dict(Direction=(origin(body, "Z_Axis"), [""]), Length=15, Reversed=True, Occurrences=2))]
+for label, typ, props in cases:
+    tr_ = body.newObject("PartDesign::" + typ, "Copie")
+    tr_.Originals, tr_.Refine = [t], False
+    for k, v in props.items():
+        setattr(tr_, k, v)
+    doc.recompute()
+    check(tr_.isValid() and abs((tr_.Shape.Volume - rev.Shape.Volume) - 2 * added) < 1e-2 and rmax(tr_.Shape, 5) > 7.5,
+          "%s : filet complet sur le Ø13,5 du bas (%.3f = 2 × %.3f mm3)" % (label, tr_.Shape.Volume - rev.Shape.Volume, added))
+    doc.removeObject(tr_.Name)
+    doc.recompute()
+body.Tip = pp
+doc.recompute()
+check(pp.isValid() and abs((pp.Shape.Volume - rev.Shape.Volume) - 2 * added) < 1e-2 and rmax(pp.Shape, 5) > 7.5,
+      "répétition circulaire 180° autour d'un axe X à mi-hauteur : filet complet en bas, pas à droite (%s, base %s, %.3f mm3)"
+      % (pp.getStatusString(), pp.BaseFeature.Name if pp.BaseFeature else None, pp.Shape.Volume - rev.Shape.Volume))
+
 log("\nSYMÉTRIE / RÉPÉTITION : %s" % ("RÉUSSI" if not FAILS else "%d échec(s)" % len(FAILS)))
