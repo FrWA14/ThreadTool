@@ -9,6 +9,28 @@ L'interface est en **français** quand FreeCAD est en français, en **anglais** 
 
 > **English** — Adds a **Thread / tap** command to Part Design, next to **Hole**. Click a cylindrical face: the tool detects a hole (internal thread) or a shaft (external thread), proposes the closest standard (ISO M, UNC/UNF/UNEF, BSP G, BSW/BSF, NPT, BSPT, Tr or custom), adjusts the diameter and cuts the helix. The interface follows FreeCAD's language: French, English, or any language that has a translation file.
 
+## Aperçu
+
+**Filetage** d'un arbre Ø10 en M10 : il suffit de cliquer la face cylindrique, la norme et la longueur sont proposées.
+
+| Panneau et aperçu | Résultat |
+|---|---|
+| ![Filetage : panneau](docs/images/filetage_panneau.png) | ![Filetage : résultat](docs/images/filetage_resultat.png) |
+
+**Trou taraudé M6 avec lamage ISO 4762** : clic sur une face plane, choix de la tête ; le filet commence sous le lamage (vue en coupe).
+
+| Panneau et aperçu | Résultat (coupe) |
+|---|---|
+| ![Taraudage avec lamage : panneau](docs/images/taraudage_lamage_panneau.png) | ![Taraudage avec lamage : résultat en coupe](docs/images/taraudage_lamage_resultat.png) |
+
+**Vis CHC M8** : tige filetée, tête cylindrique ISO 4762 et empreinte six pans creux, dans la même fonction.
+
+| Panneau et aperçu | Résultat |
+|---|---|
+| ![Vis CHC : panneau](docs/images/vis_chc_panneau.png) | ![Vis CHC : résultat](docs/images/vis_chc_resultat.png) |
+
+Les images sont refaites par `freecad docs/screenshots.py` (FreeCAD en interface graphique).
+
 ---
 
 ## Installation (Windows, Linux, macOS)
@@ -17,16 +39,15 @@ Trois méthodes au choix. Dans tous les cas, **redémarre FreeCAD** ensuite et o
 
 ### A. Archive + macro (hors ligne, la plus simple)
 
-1. Récupère la dernière archive `ThreadTool-<version>.zip` (dossier `dist/`, ou fabrique-la avec `python3 make_release.py` ; sous Windows : `& "C:\Program Files\FreeCAD 1.1\bin\python.exe" make_release.py`) et décompresse-la n'importe où.
+1. Récupère la dernière archive `ThreadTool-<version>.zip` (page [Releases](https://github.com/FrWA14/ThreadTool/releases) du dépôt, ou fabrique-la avec `python3 make_release.py` ; sous Windows : `& "C:\Program Files\FreeCAD 1.1\bin\python.exe" make_release.py`) et décompresse-la n'importe où.
 2. Dans FreeCAD : **Fichier → Ouvrir…** et choisis `Installer_ThreadTool.FCMacro`.
 3. Clique sur **Macro → Exécuter la macro** (▶). Un message indique où ThreadTool a été copié.
 
 ### B. Gestionnaire d'extensions (Outils → Gestionnaire d'extensions)
 
-Le gestionnaire installe depuis un dépôt **GitHub, GitLab ou Codeberg**. Sous Windows, il n'a pas besoin de git : il télécharge un zip.
-1. Publie ce dossier dans un dépôt, branche `main`, avec `package.xml` à la racine. Sur github.com : *New repository* → `ThreadTool` → *uploading an existing file*, puis glisse tout le contenu du dossier `ThreadTool`, sans `dist/`.
-2. Dans FreeCAD : **Édition → Préférences → Gestionnaire d'extensions → Dépôts personnalisés** → **+** → URL `https://github.com/FrWA14/ThreadTool`, branche `main`.
-3. **Outils → Gestionnaire d'extensions** → cherche « ThreadTool » → **Installer**. Les mises à jour se font ensuite depuis le même écran.
+Le gestionnaire installe ThreadTool directement depuis ce dépôt GitHub. Sous Windows, il n'a pas besoin de git : il télécharge un zip.
+1. Dans FreeCAD : **Édition → Préférences → Gestionnaire d'extensions → Dépôts personnalisés** → **+** → URL `https://github.com/FrWA14/ThreadTool`, branche `main`.
+2. **Outils → Gestionnaire d'extensions** → cherche « ThreadTool » → **Installer**. Les mises à jour se font ensuite depuis le même écran.
 
 ### C. Copie à la main
 
