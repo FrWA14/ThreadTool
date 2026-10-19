@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<package format="1" xmlns="https://wiki.freecad.org/Package_Metadata">
+  <name>ThreadTool</name>
+  <description>Filetage / taraudage automatique pour Part Design : détection trou / arbre, normes ISO, UNC/UNF/UNEF, BSP, BSW/BSF, NPT, BSPT, Tr et dimensions personnalisées (impression 3D).</description>
+  <version>0.6.2</version>
+  <date>2026-10-17</date>
+  <maintainer email="91943447+FrWA14@users.noreply.github.com">frwa</maintainer>
+  <license file="LICENSE">LGPL-2.1-or-later</license>
+  <url type="repository" branch="main">https://github.com/FrWA14/ThreadTool</url>
+  <url type="readme">https://github.com/FrWA14/ThreadTool/blob/main/README.md</url>
+  <icon>Resources/icons/ThreadTool.svg</icon>
+  <freecadmin>1.0.0</freecadmin>
+  <tag>PartDesign</tag>
+  <tag>thread</tag>
+  <tag>filetage</tag>
+  <tag>3D printing</tag>
+  <content>
+    <!-- « workbench » est nécessaire : FreeCAD n'exécute InitGui.py que pour ce type de contenu.
+         Pas de <classname> : ThreadTool ne crée pas d'atelier, il ajoute une commande à Part Design. -->
+    <workbench>
+      <name>ThreadTool</name>
+      <description>Commande « Filetage / taraudage » ajoutée à l'atelier Part Design, à côté de Perçage.</description>
+      <icon>Resources/icons/ThreadTool.svg</icon>
+      <subdirectory>./</subdirectory>
+    </workbench>
+  </content>
+</package>

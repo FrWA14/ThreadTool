@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>ThreadTool</title>
+  <defs>
+    <linearGradient id="body" x1="14" y1="23" x2="52" y2="41" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#729fcf"/>
+      <stop offset="1" stop-color="#204a87"/>
+    </linearGradient>
+    <radialGradient id="face" cx="20" cy="33" r="22" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#b7d1ee"/>
+      <stop offset="1" stop-color="#3465a4"/>
+    </radialGradient>
+  </defs>
+  <!-- corps du cylindre (axe vers l'arrière-plan, en haut à droite) -->
+  <path d="M14,23 L32,11 A18,18 0 0 1 52,41 L34,53 Z" fill="url(#body)" stroke="#0b1521" stroke-width="2" stroke-linejoin="round"/>
+  <!-- face avant : cercle plein = diamètre de sommet -->
+  <circle cx="24" cy="38" r="18" fill="url(#face)" stroke="#0b1521" stroke-width="2"/>
+  <!-- croix d'axe -->
+  <path d="M5,38 H43 M24,19 V57" stroke="#0b1521" stroke-width="1.5" stroke-dasharray="6 2 1.5 2" fill="none"/>
+  <!-- 3/4 de cercle = diamètre de fond du filet (ISO 6410) -->
+  <path d="M36,38 A12,12 0 1 1 24,26" fill="none" stroke="#0b1521" stroke-width="4.5" stroke-linecap="round"/>
+  <path d="M36,38 A12,12 0 1 1 24,26" fill="none" stroke="#fce94f" stroke-width="2.5" stroke-linecap="round"/>
+</svg>
