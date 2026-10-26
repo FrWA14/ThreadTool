@@ -376,10 +376,19 @@ def _wall_warning(shape, info, p, cfg):
     rr = p.r_at(z) + (-1 if p.kind == "arbre" else 1) * (p.g["depth"] + 0.05)
     if rr <= 0:
         return
-    u = radial(info["face"].Vertexes[0].Point if info["face"].Vertexes else p.c + V(1, 0, 0), p.c, p.a)
-    if u.Length < 1e-9:
-        return
+    a = p.a
+    u = a.cross(V(1, 0, 0)) if abs(a.x) < 0.9 else a.cross(V(0, 1, 0))
     u.normalize()
-    q = p.c + p.a * t + u * rr
-    if not shape.isInside(q, cfg.inside_tol, True):
-        p.messages.append(tr("Attention : paroi peut-être trop fine derrière le filet"))
+    w = a.cross(u)
+    mid = p.c + a * t
+    tol = max(cfg.tol(p.R), 1e-3)
+    faces = info.get("group") or [info["face"]]
+    for k in range(12):                   # seulement là où la face existe : pas dans une fente, un méplat…
+        ang = 2 * math.pi * k / 12
+        d = u * math.cos(ang) + w * math.sin(ang)
+        on = Part.Vertex(mid + d * radius_at(info, t))
+        if all(on.distToShape(f)[0] > tol for f in faces):
+            continue
+        if not shape.isInside(mid + d * rr, cfg.inside_tol, True):
+            p.messages.append(tr("Attention : paroi peut-être trop fine derrière le filet"))
+            return

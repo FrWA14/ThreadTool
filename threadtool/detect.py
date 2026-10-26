@@ -212,37 +212,68 @@ def radius_at(info, t):
     return info["r0"] + info["slope"] * t
 
 
-def ends(shape, info, cfg, others=()):
-    """Pour chaque extrémité ('low' = t_min, 'high' = t_max) : libre ou non.
+def end_edges(shape, info, cfg):
+    """Bords d'extrémité du groupe : [(arête, faces voisines hors groupe, t moyen)].
 
-    Libre = les faces voisines du bord sont côté vide (bout d'arbre / entrée de trou)
-    et le bord ne touche aucun autre corps (others : formes dans le même repère)."""
-    a, c, kind = info["axis"], info["center"], info["kind"]
-    group = info["group"]
-    tmid = (info["t_min"] + info["t_max"]) / 2
-    res = {"low": dict(t=info["t_min"], free=True, edges=[], neighbors=[]),
-           "high": dict(t=info["t_max"], free=True, edges=[], neighbors=[])}
+    Une fente, un méplat ou un perçage transversal découpent aussi la face, mais ne la terminent pas : le
+    filet continue de part et d'autre. Sont donc écartés les bords droits parallèles à l'axe (flancs d'une
+    fente) et les chaînes de bords qui ne touchent ni t_min ni t_max (fond d'une fente, perçage transversal)."""
+    a, c, group = info["axis"], info["center"], info["group"]
+    tol = max(cfg.tol(info["R"]), 1e-4)
+    cand = []
     for f in group:
         for e in f.Edges:
             nb = [g for g in shape.ancestorsOfType(e, Part.Face)
                   if not any(g.isSame(h) for h in group)]
             if not nb:
                 continue                                   # couture ou arête interne au groupe
+            if isinstance(e.Curve, Part.Line) and App.Vector(e.Curve.Direction).cross(a).Length < 1e-6:
+                continue                                   # flanc d'une fente / d'un méplat
             pts = e.discretize(Number=16) if e.Length > 1e-7 else [v.Point for v in e.Vertexes]
-            tm = sum((q - c).dot(a) for q in pts) / len(pts)
-            side = res["high" if tm > tmid else "low"]
-            side["edges"].append(e)
-            for g in nb:
-                side["neighbors"].append(g)
-                Rg = radius_at(info, tm)
-                try:
-                    q = _interior_point(g)            # point bien à l'intérieur de la face voisine
-                except NotThreadable:
-                    continue
-                rq = radial(q, c, a).Length
-                void_side = rq < Rg - 1e-6 if kind == "arbre" else rq > Rg + 1e-6
-                if not void_side:
-                    side["free"] = False
+            ts = [(q - c).dot(a) for q in pts]
+            cand.append([e, nb, sum(ts) / len(ts), min(ts), max(ts), None])
+    # chaînes de bords reliés par leurs sommets
+    for i, x in enumerate(cand):
+        if x[5] is None:
+            x[5], todo = i, [x]
+            while todo:
+                y = todo.pop()
+                for z in cand:
+                    if z[5] is None and any((v.Point - w.Point).Length < 1e-6
+                                            for v in y[0].Vertexes for w in z[0].Vertexes):
+                        z[5] = i
+                        todo.append(z)
+    out = []
+    for i in {x[5] for x in cand}:
+        chain = [x for x in cand if x[5] == i]
+        if min(x[3] for x in chain) <= info["t_min"] + tol or max(x[4] for x in chain) >= info["t_max"] - tol:
+            out += [(x[0], x[1], x[2]) for x in chain]
+    return out
+
+
+def ends(shape, info, cfg, others=()):
+    """Pour chaque extrémité ('low' = t_min, 'high' = t_max) : libre ou non.
+
+    Libre = les faces voisines du bord sont côté vide (bout d'arbre / entrée de trou)
+    et le bord ne touche aucun autre corps (others : formes dans le même repère)."""
+    a, c, kind = info["axis"], info["center"], info["kind"]
+    tmid = (info["t_min"] + info["t_max"]) / 2
+    res = {"low": dict(t=info["t_min"], free=True, edges=[], neighbors=[]),
+           "high": dict(t=info["t_max"], free=True, edges=[], neighbors=[])}
+    for e, nb, tm in end_edges(shape, info, cfg):
+        side = res["high" if tm > tmid else "low"]
+        side["edges"].append(e)
+        for g in nb:
+            side["neighbors"].append(g)
+            Rg = radius_at(info, tm)
+            try:
+                q = _interior_point(g)            # point bien à l'intérieur de la face voisine
+            except NotThreadable:
+                continue
+            rq = radial(q, c, a).Length
+            void_side = rq < Rg - 1e-6 if kind == "arbre" else rq > Rg + 1e-6
+            if not void_side:
+                side["free"] = False
     for side in res.values():
         if not side["edges"]:
             side["free"] = False

@@ -1154,6 +1154,7 @@ class ThreadTaskPanel:
             msgs = list(p.messages)
             if ctx["info"].get("warning"):
                 msgs.append(ctx["info"]["warning"])
+            msgs += feature.refine_warnings(self.obj)
             self.show_msg(" ; ".join(msgs), "warn")
             if self.ck_preview.isChecked():
                 shape = self.base.Shape
@@ -1212,7 +1213,7 @@ class ThreadTaskPanel:
                 self.preview.set_shapes(p.tools + hs, color, self.cfg.preview_transparency)
             else:
                 self.preview.clear_shapes()
-            self.show_msg(" ; ".join(p.messages), "warn")
+            self.show_msg(" ; ".join(p.messages + feature.refine_warnings(self.obj)), "warn")
             self.set_ok_enabled(True)
         except Exception as e:
             self.preview.set_axis(None, None)

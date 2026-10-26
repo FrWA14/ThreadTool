@@ -16,7 +16,7 @@ Set-Location $PSScriptRoot
 # Les tests vérifient les messages en français, quelle que soit la langue de FreeCAD.
 if (-not $env:THREADTOOL_LANG) { $env:THREADTOOL_LANG = "fr" }
 
-$headlessTests = "run_tests", "test_feature", "test_exercise", "test_creation", "test_offset", "test_heads", "test_transform"
+$headlessTests = "run_tests", "test_feature", "test_exercise", "test_creation", "test_offset", "test_heads", "test_transform", "test_slot"
 $guiTests = "gui_test", "gui_exercise", "gui_creation", "gui_offset", "gui_heads", "gui_support"
 $todo = if ($Only) { $Only } elseif ($Gui) { $headlessTests + $guiTests } else { $headlessTests }
 

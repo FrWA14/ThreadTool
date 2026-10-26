@@ -144,6 +144,7 @@ class ThreadFeature:
                 msgs = [m for m in msgs if not builder.is_entry_msg(m)]
             msgs += [hmsg] if hmsg else []
             msgs += set_addsub(obj, shape, res, cuts, adds)
+            msgs += warn_refine(obj)
             obj.DetectedKind = tr(cc["plan"].kind)
             obj.DetectedDiameter = 2 * cc["plan"].r
             obj.Messages = " ; ".join(msgs)
@@ -173,10 +174,19 @@ class ThreadFeature:
             (cuts if kind == "trou" else adds).append(tool)
             msgs += [m] if m else []
         msgs += set_addsub(obj, shape, res, cuts, adds)
+        msgs += warn_refine(obj)
         obj.DetectedKind = tr(info["kind"])
         obj.DetectedDiameter = info["diameter"]
         obj.Messages = " ; ".join(msgs)
         obj.Shape = res
+
+
+def warn_refine(obj):
+    """Avertissement « Affiner » : dans les messages de la fonction et dans la vue rapport."""
+    msgs = refine_warnings(obj)
+    for m in msgs:
+        App.Console.PrintWarning("%s : %s\n" % (obj.Label, m))
+    return msgs
 
 
 def find_face(obj, shape, cfg):
@@ -308,6 +318,30 @@ def head_frame(plan, info, h):
     far = "high" if plan.side == "low" else "low"
     t = info["ends"][far]["t"] if "ends" in info else (info["t_max"] if far == "high" else info["t_min"])
     return c + a * t, a * u
+
+
+REFINE_WARN = N_("« Affiner » activé après un filet (%s) : l'affinage abîme le solide fileté et les fonctions "
+                 "suivantes (poche, perçage…) peuvent ne plus rien couper ; décoche « Affiner » (propriété Refine)")
+
+
+def refined_after_thread(obj):
+    """Fonctions du corps qui suivent un filet avec « Affiner » activé (libellés).
+
+    L'affinage (removeSplitter) fusionne les faces voisines du filet et laisse des arêtes hélicoïdales
+    fausses (BOPAlgo_InvalidCurveOnSurface) : les booléens suivants échouent sans erreur visible."""
+    body = obj.getParentGeoFeatureGroup()
+    out, seen = [], False
+    for f in getattr(body, "Group", []):
+        if isinstance(getattr(f, "Proxy", None), ThreadFeature):
+            seen = True                                   # sa propre propriété Refine n'est pas appliquée
+        elif seen and getattr(f, "Refine", False) and f.isDerivedFrom("PartDesign::Feature"):
+            out.append(f.Label)
+    return out
+
+
+def refine_warnings(obj):
+    labels = refined_after_thread(obj)
+    return [tr(REFINE_WARN) % ", ".join(labels)] if labels else []
 
 
 SUB_TYPE = "PartDesign::FeatureSubtractivePython"

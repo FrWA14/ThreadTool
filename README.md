@@ -170,6 +170,7 @@ Sélectionne l'appui, puis clique sur l'icône. La ligne **Opération** en haut 
   - le plan d'arrêt, placé à la profondeur demandée.
 
   Le filet atteint donc toujours la face d'entrée. Il ne dépasse jamais le plan d'arrêt, qui est limité au point le plus proche du bord opposé de la face : raccord avec le cône de perçage (118° / 120°), fond plat ou épaulement d'une tête de vis. Une **marge de fin** réglable (Préférences) laisse de la place avant le fond.
+- **Face fendue** : une fente, un méplat ou un perçage transversal qui coupent la face ne sont pas pris pour des extrémités : le filet continue de part et d'autre. La fente peut être faite avant le filet (taraudage d'un trou déjà fendu, trou taraudé dont l'entrée est dans la fente) ou après (Poche à travers le filet).
 
 ## Tests
 
@@ -184,7 +185,7 @@ Le script utilise `C:\Program Files\FreeCAD 1.1\bin` (autre dossier : variable `
 **Linux** (sans interface, ≈ 1 à 3 minutes) :
 ```bash
 cd ThreadTool/tests
-for t in run_tests test_feature test_exercise test_creation test_offset test_heads test_transform test_i18n; do
+for t in run_tests test_feature test_exercise test_creation test_offset test_heads test_transform test_slot test_i18n; do
     <chemin>/FreeCAD_1.1.1-Linux-x86_64-py311.AppImage freecadcmd $t.py
 done
 ```
@@ -200,6 +201,7 @@ Pour ne pas toucher à ton profil FreeCAD pendant les tests d'interface, lance-l
 - Le mode « crête ajoutée » (`thread_mode = add` du cahier des charges) n'est pas implémenté : le filet est toujours creusé.
 - Le filet se termine net au plan d'arrêt, sans sortie progressive.
 - Les booléens sur les hélices prennent quelques secondes sur un petit PC (≈ 2 à 5 s pour un M4 de 10 mm).
+- **« Affiner » (Refine) abîme un solide fileté** : sur une fonction placée après un filet (Répétition, Poche, Protrusion…), l'affinage d'OpenCASCADE laisse des arêtes hélicoïdales fausses, et les booléens suivants échouent sans erreur visible (une Poche à travers le filet ne coupe rien). Décoche « Affiner » sur ces fonctions, ou désactive l'affinage automatique dans les préférences de Part Design. ThreadTool le signale dans le panneau, dans la propriété Messages et dans la vue rapport. Une fonction ajoutée plus tard n'est signalée qu'au prochain recalcul du filet.
 - Les plans de référence pris dans un autre corps ne sont pas gérés : utilise un plan du même corps ou de son Origin.
 - Les têtes de vis sont des formes simplifiées : pas d'arrondi sous tête, pas de collerette, et des empreintes Phillips et Torx approchées. Les cotes principales (Ø ou sur plats, hauteur, taille d'empreinte) suivent les normes citées.
 - Les valeurs des listes déroulantes de la vue Propriétés (Operation, Mode, têtes, empreintes…) sont traduites ; dans une macro, utilise de préférence `threadtool.i18n.enum_put(obj, "Operation", creation.OPERATIONS, "Trou taraudé")`, qui marche quelle que soit la langue.

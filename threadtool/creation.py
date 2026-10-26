@@ -188,9 +188,8 @@ def _cyl(r, L, c, d):
     return Part.makeCylinder(r, L, c, d)
 
 
-def thickness(base, c, d):
-    """Épaisseur de matière depuis c dans la direction d."""
-    big = base.BoundBox.DiagonalLength * 2 + 10
+def _run(base, c, d, big):
+    """Longueur de matière d'un seul tenant depuis c dans la direction d (0 si c est dans le vide)."""
     seg = Part.LineSegment(c, c + d * big).toShape()
     try:
         com = seg.common(base)
@@ -200,6 +199,24 @@ def thickness(base, c, d):
         if min((v.Point - c).Length for v in e.Vertexes) < 1e-6:
             return e.Length
     return 0.0
+
+
+def thickness(base, c, d, r=0.0):
+    """Épaisseur de matière depuis c dans la direction d.
+
+    Mesurée sur l'axe ; si l'axe est dans le vide (fente, rainure qui traverse l'entrée du trou), sur des
+    lignes parallèles réparties sur le Ø r : la plus longue compte."""
+    big = base.BoundBox.DiagonalLength * 2 + 10
+    t = _run(base, c, d, big)
+    if t > 0 or r <= 0:
+        return t
+    u = d.cross(V(1, 0, 0)) if abs(d.x) < 0.9 else d.cross(V(0, 1, 0))
+    u.normalize()
+    w = d.cross(u)
+    for k in range(12):
+        ang = 2 * math.pi * k / 12
+        t = max(t, _run(base, c + (u * math.cos(ang) + w * math.sin(ang)) * (0.8 * r), d, big))
+    return t
 
 
 def plan(anchor, base, op, r, L, reverse=False):
@@ -235,7 +252,7 @@ def plan(anchor, base, op, r, L, reverse=False):
             if base.distToShape(disc)[0] > 1e-6:
                 raise NotThreadable(VOID_PAD + where)
     if hole:
-        p.thickness = min(thickness(base, c, d) for c in p.centers)
+        p.thickness = min(thickness(base, c, d, r) for c in p.centers)
         if p.thickness < L - 1e-6:
             p.messages.append(tr("Trou débouchant : %.2f mm de matière pour %.2f mm demandés") % (p.thickness, L))
     else:
